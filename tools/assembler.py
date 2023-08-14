@@ -27,6 +27,17 @@ def error(msg, l):
     sys.stderr.write(msg + " on line %i\n" % l)
     sys.exit(1)
 
+def get_int(s):
+    if s.startswith("0x"):
+        base = 16
+    else:
+        base = 10
+    return int(s, base)
+
+def usage(args):
+    sys.stderr.write("usage: %s [-v] <input file> <output file>\n" % sys.argv[0])
+    sys.exit(1)
+
 def process(lines, out_f, verbose):
 
     labels = {}
@@ -85,25 +96,20 @@ def check_args(args, fmt, l):
         if p[0] == "R":
             # Registers are specified as decimals with an optional leading R or r.
             a = a.lower().lstrip("r")
-            base = 10
-        elif p[0] == "S":
+        elif p[0] == "S" or p[0] == "H":
             # Shifts are specified as decimals.
-            base = 10
+            pass
         elif p[0] == "B" or p[0] == "A":
             # Byte and address values can be specified in hexadecimal with a
             # leading 0x.
             a = a.lower()
-            if a.startswith("0x"):
-                base = 16
-            else:
-                base = 10
         elif p[0] == "L":
             continue
 
         lower, upper = value_limits[p[0]]
 
         try:
-            v = int(a, base)
+            v = get_int(a)
             if not lower <= v < upper: raise ValueError
             # Convert negative numbers to appropriate positive numbers.
             if v < 0: v += upper
@@ -201,7 +207,9 @@ def inst_b(n, fmt, l, name, args, addr, labels, out_f, verbose):
 def inst_js(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
-    if name == "js": values.append(labels[args[0]])
+    # Resolve the label to an index in the instruction output and add it to the
+    # base address.
+    if name == "js": values.append(base_addr + labels[args[0]])
 
     if verbose: print(Int(addr) + ":", Ins(name), args, values)
 
@@ -210,7 +218,7 @@ def inst_js(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
 
 value_limits = {
-    "A": (0, 0x10000), "B": (-128, 256), "R": (0, 16), "S": (-7, 16)
+    "A": (0, 0x10000), "B": (-128, 256), "H": (0, 16), "R": (0, 16), "S": (-7, 16)
     }
 
 cond_values = {
@@ -244,18 +252,33 @@ instructions = {
     "jsa": (12, ["Aaddr"], 3, inst_js),
     "jsi": (13, ["Rbase"], 1, inst_1r),
     "ret": (14, [], 1, inst_0r),
+    "sys": (15, ["Hvalue"], 1, inst_1r)
     }
 
-def opt(args, name):
+def opt(args, name, values=0, default=""):
+
     has_opt = name in args
-    while name in args: args.remove(name)
-    return has_opt
+    v = [default]
+    while name in args:
+        at = args.index(name)
+        v = args[at+1:at+1+values]
+        args[:] = args[:at] + args[at+1+values:]
+
+    if values == 0:
+        return has_opt
+    elif not v:
+        usage(args)
+    else:
+        return has_opt, v[0]
 
 if __name__ == "__main__":
 
     args = sys.argv[:]
     verbose = opt(args, "-v")
     colour = opt(args, "-c")
+    base, base_v = opt(args, "-b", 1, "0")
+
+    base_addr = get_int(base_v)
 
     if colour:
         Ins, Int, Label, Str = pretty.Ins, pretty.Int, pretty.Label, pretty.Str
@@ -263,8 +286,7 @@ if __name__ == "__main__":
         Ins = Int = Label = Str = lambda x: x
 
     if len(args) != 3:
-        sys.stderr.write("usage: %s [-v] <input file> <output file>\n" % sys.argv[0])
-        sys.exit(1)
+        usage(args)
 
     lines = open(args[1]).readlines()
     out_f = open(args[2], "wb")

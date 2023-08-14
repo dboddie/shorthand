@@ -52,8 +52,8 @@ and     R(dest)     R(first)    R(second)
 or      R(dest)     R(first)    R(second)
 xor     R(dest)     R(first)    R(second)
 not     R(dest)     R(src)
-load    R(dest)     R(low)      R(high)
-store   R(dest)     R(low)      R(high)
+ld      R(dest)     R(low)      R(high)
+st      R(dest)     R(low)      R(high)
 b*      cond        R(first)    R(second)   O(low)  O(high) cond described below
 b       O(low)      O(high)                                 Unconditional branch
 js                  A(0)        A(1)        A(2)    A(3)

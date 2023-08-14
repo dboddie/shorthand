@@ -1,0 +1,3 @@
+# Call system routine.
+sys 0
+sys 12
