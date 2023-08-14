@@ -1,0 +1,3 @@
+# Jump to subroutine using a base register to refer to an address.
+# (Jump to subroutine indirect)
+jsi r3
