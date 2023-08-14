@@ -1,0 +1,7 @@
+# Jump to subroutine at an absolute address.
+jsa 0x8000
+# Jump to subroutine at a label.
+js subroutine
+
+subroutine:
+ret

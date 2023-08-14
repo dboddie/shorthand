@@ -118,8 +118,7 @@ def inst_lc(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     out_f.write(struct.pack("<BB", n | (values[0] << 4), values[1]))
-    if verbose:
-        print(Int(addr) + ":", Ins(name), args, values)
+    if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
 def inst_cpy(n, fmt, l, name, args, addr, labels, out_f, verbose):
@@ -129,8 +128,7 @@ def inst_cpy(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
     out_f.write(struct.pack("<BB", n | (values[0] << 4),
                             values[1] | (values[2] << 4)))
-    if verbose:
-        print(Int(addr) + ":", Ins(name), args, values)
+    if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
 def inst_3r(n, fmt, l, name, args, addr, labels, out_f, verbose):
@@ -138,8 +136,7 @@ def inst_3r(n, fmt, l, name, args, addr, labels, out_f, verbose):
     values = check_args(args, fmt, l)
     out_f.write(struct.pack("<BB", n | (values[0] << 4),
                             values[1] | (values[2] << 4)))
-    if verbose:
-        print(Int(addr) + ":", Ins(name), args, values)
+    if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
 def inst_ldst(n, fmt, l, name, args, addr, labels, out_f, verbose):
@@ -152,32 +149,28 @@ def inst_ldst(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
     out_f.write(struct.pack("<BB", n | (values[0] << 4),
                             values[1] | (values[2] << 4)))
-    if verbose:
-        print(Int(addr) + ":", Ins(name), args, values)
+    if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
 def inst_2r(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     out_f.write(struct.pack("<BB", n, values[0] | (values[1] << 4)))
-    if verbose:
-        print(Int(addr) + ":", Ins(name), args, values)
+    if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
 def inst_1r(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     out_f.write(struct.pack("<B", n | (values[0] << 4)))
-    if verbose:
-        print(Int(addr) + ":", Ins(name), args, values)
+    if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 1
 
 def inst_0r(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     out_f.write(struct.pack("<B", n))
-    if verbose:
-        print(Int(addr) + ":", Ins(name), args, values)
+    if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 1
 
 def inst_bx(n, fmt, l, name, args, addr, labels, out_f, verbose):
@@ -187,8 +180,7 @@ def inst_bx(n, fmt, l, name, args, addr, labels, out_f, verbose):
     cond = cond_values[name.lower()]
     offset = labels[args[2]] - addr
 
-    if verbose:
-        print(Int(addr) + ":", Ins(name), args, values, offset)
+    if verbose: print(Int(addr) + ":", Ins(name), args, values, offset)
 
     if offset < 0: offset += 256
     out_f.write(struct.pack("<BBB", n | cond, values[0] | (values[1] << 4),
@@ -200,12 +192,21 @@ def inst_b(n, fmt, l, name, args, addr, labels, out_f, verbose):
     values = check_args(args, fmt, l)
     offset = labels[args[0]] - addr
 
-    if verbose:
-        print(Int(addr) + ":", Ins(name), args, values, offset)
+    if verbose: print(Int(addr) + ":", Ins(name), args, values, offset)
 
     if offset < 0: offset += 256
     out_f.write(struct.pack("<BB", n, offset))
     return 2
+
+def inst_js(n, fmt, l, name, args, addr, labels, out_f, verbose):
+
+    values = check_args(args, fmt, l)
+    if name == "js": values.append(labels[args[0]])
+
+    if verbose: print(Int(addr) + ":", Ins(name), args, values)
+
+    out_f.write(struct.pack("<BBB", n, values[0] & 0xff, values[0] >> 8))
+    return 3
 
 
 value_limits = {
@@ -239,7 +240,8 @@ instructions = {
     "bgt": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "bge": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "b": (11, ["Llabel"], 2, inst_b),
-#    "js": (12, ["Aaddr"], 3, inst_js),
+    "js": (12, ["Llabel"], 3, inst_js),
+    "jsa": (12, ["Aaddr"], 3, inst_js),
     "jsi": (13, ["Rbase"], 1, inst_1r),
     "ret": (14, [], 1, inst_0r),
     }
