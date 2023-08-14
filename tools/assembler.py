@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import pretty
 import struct, sys
 
 def error(msg, l):
@@ -31,7 +32,7 @@ def process(lines, out_f, verbose):
     labels = {}
 
     for scan in 0, 1:
-        l = 0
+        l = 1
         addr = 0
         for line in lines:
             # Remove comments
@@ -45,7 +46,7 @@ def process(lines, out_f, verbose):
                     label = line.rstrip(":")
                     labels[label] = addr
                 elif verbose:
-                    print(label + ":")
+                    print(Label(label + ":"))
                 continue
 
             pieces = line.split()
@@ -68,12 +69,17 @@ def process(lines, out_f, verbose):
 
 def check_args(args, fmt, l):
 
-    if len(args) != len(fmt):
+    opt = 0
+    for p in fmt:
+        if p.endswith("?"): opt += 1
+
+    if not (len(fmt) - opt) <= len(args) <= len(fmt):
         error("invalid number of arguments", l)
 
     values = []
 
     for a, p in zip(args, fmt):
+        p.rstrip("?")
         if p[0] == "R":
             # Registers are specified as decimals with an optional leading R or r.
             a = a.lower().lstrip("r")
@@ -111,16 +117,18 @@ def inst_lc(n, fmt, l, name, args, addr, labels, out_f, verbose):
     values = check_args(args, fmt, l)
     out_f.write(struct.pack("<BB", n | (values[0] << 4), values[1]))
     if verbose:
-        print("%i:" % addr, name, args, values)
+        print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
 def inst_cpy(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
+    if len(values) < 3: values.append(0)
+
     out_f.write(struct.pack("<BB", n | (values[0] << 4),
                             values[1] | (values[2] << 4)))
     if verbose:
-        print("%i:" % addr, name, args, values)
+        print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
 def inst_3r(n, fmt, l, name, args, addr, labels, out_f, verbose):
@@ -129,8 +137,32 @@ def inst_3r(n, fmt, l, name, args, addr, labels, out_f, verbose):
     out_f.write(struct.pack("<BB", n | (values[0] << 4),
                             values[1] | (values[2] << 4)))
     if verbose:
-        print("%i:" % addr, name, args, values)
+        print(Int(addr) + ":", Ins(name), args, values)
     return 2
+
+def inst_2r(n, fmt, l, name, args, addr, labels, out_f, verbose):
+
+    values = check_args(args, fmt, l)
+    out_f.write(struct.pack("<BB", n, values[0] | (values[1] << 4)))
+    if verbose:
+        print(Int(addr) + ":", Ins(name), args, values)
+    return 2
+
+def inst_1r(n, fmt, l, name, args, addr, labels, out_f, verbose):
+
+    values = check_args(args, fmt, l)
+    out_f.write(struct.pack("<B", n | (values[0] << 4)))
+    if verbose:
+        print(Int(addr) + ":", Ins(name), args, values)
+    return 1
+
+def inst_0r(n, fmt, l, name, args, addr, labels, out_f, verbose):
+
+    values = check_args(args, fmt, l)
+    out_f.write(struct.pack("<B", n))
+    if verbose:
+        print(Int(addr) + ":", Ins(name), args, values)
+    return 1
 
 def inst_bx(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
@@ -140,7 +172,7 @@ def inst_bx(n, fmt, l, name, args, addr, labels, out_f, verbose):
     offset = labels[args[2]] - addr
 
     if verbose:
-        print("%i:" % addr, name, args, values, offset)
+        print(Int(addr) + ":", Ins(name), args, values, offset)
 
     if offset < 0: offset += 256
     out_f.write(struct.pack("<BBB", n | cond, values[0] | (values[1] << 4),
@@ -153,7 +185,7 @@ def inst_b(n, fmt, l, name, args, addr, labels, out_f, verbose):
     offset = labels[args[0]] - addr
 
     if verbose:
-        print("%i:" % addr, name, args, values, offset)
+        print(Int(addr) + ":", Ins(name), args, values, offset)
 
     if offset < 0: offset += 256
     out_f.write(struct.pack("<BB", n, values[0] | (values[1] << 4),
@@ -176,15 +208,15 @@ cond_values = {
 
 instructions = {
     "lc": (0, ["Rdest", "Bvalue"], 2, inst_lc),
-    "cpy": (1, ["Rdest", "Rsrc", "Sshift"], 2, inst_cpy),
+    "cpy": (1, ["Rdest", "Rsrc", "Sshift?"], 2, inst_cpy),
     "add": (2, ["Rdest", "Rfirst", "Rsecond"], 2, inst_3r),
     "sub": (3, ["Rdest", "Rfirst", "Rsecond"], 2, inst_3r),
     "and": (4, ["Rdest", "Rfirst", "Rsecond"], 2, inst_3r),
     "or": (5, ["Rdest", "Rfirst", "Rsecond"], 2, inst_3r),
     "xor": (6, ["Rdest", "Rfirst", "Rsecond"], 2, inst_3r),
-#    "not": (7, ["Rdest", "Rsrc"], 2, inst_not),
-    "load": (8, ["Rdest", "Rlow", "Rhigh"], 2, inst_3r),
-    "store": (9, ["Rdest", "Rlow", "Rhigh"], 2, inst_3r),
+    "not": (7, ["Rdest", "Rsrc"], 2, inst_2r),
+    "load": (8, ["Rdest", "Rlow", "Rhigh?"], 2, inst_3r),
+    "store": (9, ["Rdest", "Rlow", "Rhigh?"], 2, inst_3r),
     "beq": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "bne": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "blt": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
@@ -193,15 +225,25 @@ instructions = {
     "bge": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "b": (11, ["Rfirst", "Rsecond", "Llabel"], 3, inst_b),
 #    "js": (12, ["Aaddr"], 3, inst_js),
-#    "jsi": (13, ["Rbase"], 1, inst_jsi),
-#    "ret": (14, [], 1, inst_ret),
+    "jsi": (13, ["Rbase"], 1, inst_1r),
+    "ret": (14, [], 1, inst_0r),
     }
+
+def opt(args, name):
+    has_opt = name in args
+    while name in args: args.remove(name)
+    return has_opt
 
 if __name__ == "__main__":
 
     args = sys.argv[:]
-    verbose = "-v" in args
-    if verbose: args.remove("-v")
+    verbose = opt(args, "-v")
+    colour = opt(args, "-c")
+
+    if colour:
+        Ins, Int, Label, Str = pretty.Ins, pretty.Int, pretty.Label, pretty.Str
+    else:
+        Ins = Int = Label = Str = lambda x: x
 
     if len(args) != 3:
         sys.stderr.write("usage: %s [-v] <input file> <output file>\n" % sys.argv[0])
