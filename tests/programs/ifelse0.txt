@@ -1,0 +1,9 @@
+# Count from 0 to 10
+lc r0 0
+lc r1 123
+bne r0 r1 not_equals
+    lc r2 0
+    b after
+not_equals:
+    lc r2 1
+after:

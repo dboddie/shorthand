@@ -42,16 +42,18 @@ def process(lines, out_f, verbose):
 
             # Register labels
             if line.endswith(":"):
+                label = line.rstrip(":")
                 if scan == 0:
-                    label = line.rstrip(":")
                     labels[label] = addr
                 elif verbose:
                     print(Label(label + ":"))
+                l += 1
                 continue
 
             pieces = line.split()
             name, args = pieces[:1], pieces[1:]
             if not name:
+                l += 1
                 continue
             else:
                 name = name[0]
@@ -140,6 +142,20 @@ def inst_3r(n, fmt, l, name, args, addr, labels, out_f, verbose):
         print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
+def inst_ldst(n, fmt, l, name, args, addr, labels, out_f, verbose):
+
+    values = check_args(args, fmt, l)
+    if len(values) < 3:
+        r = values[1] + 1
+        if r > 15: error("cannot assign implicit high address register", l)
+        values.append(r)
+
+    out_f.write(struct.pack("<BB", n | (values[0] << 4),
+                            values[1] | (values[2] << 4)))
+    if verbose:
+        print(Int(addr) + ":", Ins(name), args, values)
+    return 2
+
 def inst_2r(n, fmt, l, name, args, addr, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
@@ -188,8 +204,7 @@ def inst_b(n, fmt, l, name, args, addr, labels, out_f, verbose):
         print(Int(addr) + ":", Ins(name), args, values, offset)
 
     if offset < 0: offset += 256
-    out_f.write(struct.pack("<BB", n, values[0] | (values[1] << 4),
-                            offset))
+    out_f.write(struct.pack("<BB", n, offset))
     return 2
 
 
@@ -215,15 +230,15 @@ instructions = {
     "or": (5, ["Rdest", "Rfirst", "Rsecond"], 2, inst_3r),
     "xor": (6, ["Rdest", "Rfirst", "Rsecond"], 2, inst_3r),
     "not": (7, ["Rdest", "Rsrc"], 2, inst_2r),
-    "load": (8, ["Rdest", "Rlow", "Rhigh?"], 2, inst_3r),
-    "store": (9, ["Rdest", "Rlow", "Rhigh?"], 2, inst_3r),
+    "ld": (8, ["Rdest", "Rlow", "Rhigh?"], 2, inst_ldst),
+    "st": (9, ["Rsrc", "Rlow", "Rhigh?"], 2, inst_ldst),
     "beq": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "bne": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "blt": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "ble": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "bgt": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "bge": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
-    "b": (11, ["Rfirst", "Rsecond", "Llabel"], 3, inst_b),
+    "b": (11, ["Llabel"], 2, inst_b),
 #    "js": (12, ["Aaddr"], 3, inst_js),
     "jsi": (13, ["Rbase"], 1, inst_1r),
     "ret": (14, [], 1, inst_0r),

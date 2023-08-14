@@ -1,0 +1,5 @@
+# Load and store
+ld r0 r1
+ld r0 r1 r2
+st r0 r1
+st r0 r1 r15
