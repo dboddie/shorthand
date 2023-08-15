@@ -84,7 +84,7 @@ b*      cond        R(first)    R(second)   O(low)  O(high) cond described below
 b       O(low)      O(high)                                 Unconditional branch
 js      V(args)     A(0)        A(1)        A(2)    A(3)
 jsi     R(base)                                             Using address in R(base) and R(base+1)
-ret
+ret     V(args)
 ======  =======     ========    ==========  ======= ======= ======================================
 
 The *cond* operand enables conditional execution for branch instructions.
