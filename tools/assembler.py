@@ -28,7 +28,9 @@ def error(msg, l):
     sys.exit(1)
 
 def get_int(s):
-    if s.startswith("0x"):
+    if not s:
+        return 0
+    elif s.startswith("0x"):
         base = 16
     else:
         base = 10
@@ -41,6 +43,7 @@ def usage(args):
 def process(lines, out_f, verbose):
 
     labels = {}
+    current_label = ""
 
     for scan in 0, 1:
         l = 1
@@ -51,13 +54,22 @@ def process(lines, out_f, verbose):
             if at != -1: line = line[:at]
             line = line.strip()
 
-            # Register labels
-            if line.endswith(":"):
-                label = line.rstrip(":")
+            # Record labels and any numbers of registers
+            if ":" in line:
+                label, nparams = line.split(":")
+                label = label.strip()
+                nparams = nparams.strip()
+                np = get_int(nparams)
                 if scan == 0:
-                    labels[label] = addr
-                elif verbose:
-                    print(Label(label + ":"))
+                    labels[label] = (addr, np)
+                else:
+                    if verbose:
+                        if nparams:
+                            print(Label(label + ":") + " %i" % np)
+                        else:
+                            print(Label(label + ":"))
+                    if nparams:
+                        current_label = label
                 l += 1
                 continue
 
@@ -77,7 +89,7 @@ def process(lines, out_f, verbose):
             if scan == 0:
                 addr += size
             else:
-                addr += inst(n, fmt, l, name, args, addr, labels, out_f, verbose)
+                addr += inst(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose)
             l += 1
 
 def check_args(args, fmt, l):
@@ -120,14 +132,14 @@ def check_args(args, fmt, l):
 
     return values
 
-def inst_lc(n, fmt, l, name, args, addr, labels, out_f, verbose):
+def inst_lc(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     out_f.write(struct.pack("<BB", n | (values[0] << 4), values[1]))
     if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
-def inst_cpy(n, fmt, l, name, args, addr, labels, out_f, verbose):
+def inst_cpy(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     if len(values) < 3: values.append(0)
@@ -137,7 +149,7 @@ def inst_cpy(n, fmt, l, name, args, addr, labels, out_f, verbose):
     if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
-def inst_3r(n, fmt, l, name, args, addr, labels, out_f, verbose):
+def inst_3r(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     out_f.write(struct.pack("<BB", n | (values[0] << 4),
@@ -145,7 +157,7 @@ def inst_3r(n, fmt, l, name, args, addr, labels, out_f, verbose):
     if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
-def inst_ldst(n, fmt, l, name, args, addr, labels, out_f, verbose):
+def inst_ldst(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     if len(values) < 3:
@@ -158,33 +170,38 @@ def inst_ldst(n, fmt, l, name, args, addr, labels, out_f, verbose):
     if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
-def inst_2r(n, fmt, l, name, args, addr, labels, out_f, verbose):
+def inst_2r(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     out_f.write(struct.pack("<BB", n, values[0] | (values[1] << 4)))
     if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 2
 
-def inst_1r(n, fmt, l, name, args, addr, labels, out_f, verbose):
+def inst_1r(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     out_f.write(struct.pack("<B", n | (values[0] << 4)))
     if verbose: print(Int(addr) + ":", Ins(name), args, values)
     return 1
 
-def inst_0r(n, fmt, l, name, args, addr, labels, out_f, verbose):
+def inst_ret(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
-    out_f.write(struct.pack("<B", n))
-    if verbose: print(Int(addr) + ":", Ins(name), args, values)
+    target, nparams = labels[current_label]
+
+    out_f.write(struct.pack("<B", n | (nparams << 4)))
+    if verbose: print(Int(addr) + ":", Ins(name), nparams, args, values)
     return 1
 
-def inst_bx(n, fmt, l, name, args, addr, labels, out_f, verbose):
+def inst_bx(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
 
     cond = cond_values[name.lower()]
-    offset = labels[args[2]] - addr
+    # Obtain the target address, discarding the number of parameters for
+    # regular labels.
+    target, nparams = labels[args[2]]
+    offset = target - addr
 
     if verbose: print(Int(addr) + ":", Ins(name), args, values, offset)
 
@@ -193,10 +210,13 @@ def inst_bx(n, fmt, l, name, args, addr, labels, out_f, verbose):
                             offset))
     return 3
 
-def inst_b(n, fmt, l, name, args, addr, labels, out_f, verbose):
+def inst_b(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
-    offset = labels[args[0]] - addr
+    # Obtain the target address, discarding the number of parameters for
+    # regular labels.
+    target, nparams = labels[args[0]]
+    offset = target - addr
 
     if verbose: print(Int(addr) + ":", Ins(name), args, values, offset)
 
@@ -204,16 +224,18 @@ def inst_b(n, fmt, l, name, args, addr, labels, out_f, verbose):
     out_f.write(struct.pack("<BB", n, offset))
     return 2
 
-def inst_js(n, fmt, l, name, args, addr, labels, out_f, verbose):
+def inst_js(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
     # Resolve the label to an index in the instruction output and add it to the
     # base address.
-    if name == "js": values.append(base_addr + labels[args[0]])
+    if name == "js":
+        target, nparams = labels[args[0]]
+        values.append(base_addr + target)
 
-    if verbose: print(Int(addr) + ":", Ins(name), args, values)
+    if verbose: print(Int(addr) + ":", Ins(name), nparams, args, values)
 
-    out_f.write(struct.pack("<BBB", n, values[0] & 0xff, values[0] >> 8))
+    out_f.write(struct.pack("<BBB", n | (nparams << 4), values[0] & 0xff, values[0] >> 8))
     return 3
 
 
@@ -250,8 +272,7 @@ instructions = {
     "b": (11, ["Llabel"], 2, inst_b),
     "js": (12, ["Llabel"], 3, inst_js),
     "jsa": (12, ["Aaddr"], 3, inst_js),
-    "jsi": (13, ["Rbase"], 1, inst_1r),
-    "ret": (14, [], 1, inst_0r),
+    "ret": (13, [], 1, inst_ret),
     "sys": (15, ["Hvalue"], 1, inst_1r)
     }
 
@@ -283,7 +304,7 @@ if __name__ == "__main__":
     if colour:
         Ins, Int, Label, Str = pretty.Ins, pretty.Int, pretty.Label, pretty.Str
     else:
-        Ins = Int = Label = Str = lambda x: x
+        Ins = Int = Label = Str = lambda x: str(x)
 
     if len(args) != 3:
         usage(args)

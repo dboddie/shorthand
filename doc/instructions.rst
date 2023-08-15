@@ -16,7 +16,33 @@ machine code of a specific CPU, like the 6502, the virtual machine uses a set
 of instructions that operate on a collection of virtual registers.
 
 There are 16 general purpose registers, each 8 bits wide. Pairs of registers
-are used to refer to addresses that are 16 bits wide.
+are used to refer to addresses that are 16 bits wide. Registers are implemented
+as bytes in a block of memory that can hold a larger number of registers than a
+default set of 16. By treating registers as elements in a byte array whose
+base in the larger memory block can be shifted, windows of registers can be
+used for different purposes.
+
+Subroutines
+-----------
+
+Local registers in subroutines are supported by adjusting the base address used
+to access registers. This could be implemented in two ways: by adjusting the
+base address to a higher value, or by adjusting it a lower value.
+
+Adjusting the base higher would prevent a subroutine from accessing its
+caller's registers, and it would allow the calling routine to fine-tune use
+of registers at different points in its execution. However, the size of the
+adjustment would need to be recorded so that it could be obtained at run-time
+and undone when the subroutine returns.
+
+Adjusting the base lower would require the subroutine to declare the number of
+registers it needs, but it would make the task of undoing the adjustment easier
+since it would always be the same for any call to the subroutine.
+
+Since it is easier and more consistent to let the subroutine's requirements
+determine the size of the adjustment, and since a positive adjustment requires
+that the calling routine's requirements to be taken into account, a negative
+adjustment is used.
 
 Format
 ------
@@ -56,7 +82,7 @@ ld      R(dest)     R(low)      R(high)
 st      R(dest)     R(low)      R(high)
 b*      cond        R(first)    R(second)   O(low)  O(high) cond described below
 b       O(low)      O(high)                                 Unconditional branch
-js                  A(0)        A(1)        A(2)    A(3)
+js      V(args)     A(0)        A(1)        A(2)    A(3)
 jsi     R(base)                                             Using address in R(base) and R(base+1)
 ret
 ======  =======     ========    ==========  ======= ======= ======================================

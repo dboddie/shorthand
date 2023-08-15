@@ -1,0 +1,9 @@
+fn: 1
+    ret
+
+two_locals: 2
+    ret
+
+main:
+    js fn
+    js two_locals
