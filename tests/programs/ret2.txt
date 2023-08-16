@@ -1,0 +1,12 @@
+lc r0 123
+lc r1 57
+js add_ints
+sys 0
+
+# Define a subroutine with no local registers. When called, the base of the
+# registers will be shifted so that the return address can be stored, and this
+# will be available as r0 in the subroutine. r0 and r1 of the caller are still
+# accessible as r1 and r2, so their values can be accessed and modified.
+add_ints: 0
+    add r1 r1 r2
+    ret
