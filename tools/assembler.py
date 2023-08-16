@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from common import get_int, opt
 import pretty
 import struct, sys
 
@@ -27,17 +28,8 @@ def error(msg, l):
     sys.stderr.write(msg + " on line %i\n" % l)
     sys.exit(1)
 
-def get_int(s):
-    if not s:
-        return 0
-    elif s.startswith("0x"):
-        base = 16
-    else:
-        base = 10
-    return int(s, base)
-
 def usage(args):
-    sys.stderr.write("usage: %s [-v] <input file> <output file>\n" % sys.argv[0])
+    sys.stderr.write("usage: %s [-c] [-v] <input file> <output file>\n" % sys.argv[0])
     sys.exit(1)
 
 def split_pair(line, c, l):
@@ -217,28 +209,31 @@ def inst_bx(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
     cond = cond_values[name.lower()]
     # Obtain the target address, discarding the number of parameters for
     # regular labels.
-    target, nparams = labels[args[2]]
+    target, nparams, absolute = labels[args[2]]
     offset = target - addr
 
     if verbose: print(Int(addr) + ":", Ins(name), args, values, offset)
 
     if offset < 0: offset += 256
-    out_f.write(struct.pack("<BBB", n | cond, values[0] | (values[1] << 4),
-                            offset))
+    out_f.write(struct.pack("<BBB", n | (cond << 4), offset,
+                            values[0] | (values[1] << 4)))
     return 3
 
 def inst_b(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
+    # Use a special value for unconditional branches.
+    cond = 15
+
     # Obtain the target address, discarding the number of parameters for
     # regular labels.
-    target, nparams = labels[args[0]]
+    target, nparams, absolute = labels[args[0]]
     offset = target - addr
 
     if verbose: print(Int(addr) + ":", Ins(name), args, values, offset)
 
     if offset < 0: offset += 256
-    out_f.write(struct.pack("<BB", n, offset))
+    out_f.write(struct.pack("<BB", n | (cond << 4), offset))
     return 2
 
 def inst_js(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
@@ -287,27 +282,13 @@ instructions = {
     "ble": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "bgt": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "bge": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
-    "b": (11, ["Llabel"], 2, inst_b),
-    "js": (12, ["Llabel"], 3, inst_js),
-    "ret": (13, [], 1, inst_ret),
+    # Unconditional branch is encoded as a conditional branch with cond=15
+    # but no registers.
+    "b": (10, ["Llabel"], 2, inst_b),
+    "js": (13, ["Llabel"], 3, inst_js),
+    "ret": (14, [], 1, inst_ret),
     "sys": (15, ["Hvalue"], 1, inst_1r)
     }
-
-def opt(args, name, values=0, default=""):
-
-    has_opt = name in args
-    v = [default]
-    while name in args:
-        at = args.index(name)
-        v = args[at+1:at+1+values]
-        args[:] = args[:at] + args[at+1+values:]
-
-    if values == 0:
-        return has_opt
-    elif not v:
-        usage(args)
-    else:
-        return has_opt, v[0]
 
 if __name__ == "__main__":
 
@@ -315,7 +296,6 @@ if __name__ == "__main__":
     verbose = opt(args, "-v")
     colour = opt(args, "-c")
     base, base_v = opt(args, "-b", 1, "0")
-
     base_addr = get_int(base_v)
 
     if colour:

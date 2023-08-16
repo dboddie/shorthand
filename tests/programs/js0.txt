@@ -1,8 +1,10 @@
+# Jump to subroutine at a label.
+js subroutine
+sys 0
+
 # Jump to subroutine at an absolute address.
 fixed=0x8000
 js fixed
-# Jump to subroutine at a label.
-js subroutine
 
 subroutine: 0
 ret

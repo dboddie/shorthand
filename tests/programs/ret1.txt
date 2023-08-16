@@ -1,3 +1,6 @@
+lc r0 123
+b main
+
 fn: 1
     ret
 

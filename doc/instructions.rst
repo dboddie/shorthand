@@ -67,11 +67,11 @@ Offsets are indicated by O.
 
 Values are indicated by V.
 
-======  =======     ========    ==========  ======= ======= ======================================
-Name    Operands (each 4 bits in size)                      Note
-======  =================================================== ======================================
-lc      R(dest)     V(low)      V(high)                     Load constant
-cpy     R(dest)     R(src)      V(shift)                    Copy with optional shift
+======  ==========  ========    ==========  ==========  ======  ======================================
+Name    Operands (each 4 bits in size)                          Note
+======  ======================================================  ======================================
+lc      R(dest)     V(low)      V(high)                         Load constant
+cpy     R(dest)     R(src)      V(shift)                        Copy with optional shift
 add     R(dest)     R(first)    R(second)
 sub     R(dest)     R(first)    R(second)
 and     R(dest)     R(first)    R(second)
@@ -79,13 +79,13 @@ or      R(dest)     R(first)    R(second)
 xor     R(dest)     R(first)    R(second)
 not     R(dest)     R(src)
 ld      R(dest)     R(low)      R(high)
-st      R(dest)     R(low)      R(high)
-b*      cond        R(first)    R(second)   O(low)  O(high) cond described below
-b       O(low)      O(high)                                 Unconditional branch
-js      V(args)     A(0)        A(1)        A(2)    A(3)
-jsi     R(base)                                             Using address in R(base) and R(base+1)
+st      R(src)      R(low)      R(high)
+b*      cond        O(low)      O(high)     R(first) R(second)  cond described below
+b       cond=15     O(low)      O(high)                         Unconditional branch
+js      V(args)     A(0)        A(1)        A(2)     A(3)
 ret     V(args)
-======  =======     ========    ==========  ======= ======= ======================================
+sys     V(value)
+======  ==========  ========    ==========  ======== ======= ======================================
 
 The *cond* operand enables conditional execution for branch instructions.
 Each of the lowest 3 bits are used to indicate that the instruction should be

@@ -1,0 +1,7 @@
+# Copy registers
+lc r1 123
+lc r3 255
+lc r5 255
+cpy r0 r1
+cpy r2 r3 7
+cpy r4 r5 -7
