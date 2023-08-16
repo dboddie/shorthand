@@ -1,0 +1,5 @@
+# Jump to subroutine with address defined using an assignment.
+fn = 0x3000
+js fn
+other = 0x4000,1
+js other

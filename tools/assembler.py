@@ -40,6 +40,13 @@ def usage(args):
     sys.stderr.write("usage: %s [-v] <input file> <output file>\n" % sys.argv[0])
     sys.exit(1)
 
+def split_pair(line, c, l):
+    pieces = line.split(c)
+    if len(pieces) != 2:
+        error("invalid definition", l)
+    left, right = pieces
+    return left.strip(), right.strip()
+
 def process(lines, out_f, verbose):
 
     labels = {}
@@ -54,14 +61,13 @@ def process(lines, out_f, verbose):
             if at != -1: line = line[:at]
             line = line.strip()
 
-            # Record labels and any numbers of registers
             if ":" in line:
-                label, nparams = line.split(":")
-                label = label.strip()
-                nparams = nparams.strip()
+                # Record labels and any numbers of registers for subroutines
+                label, nparams = split_pair(line, ":", l)
                 np = get_int(nparams)
                 if scan == 0:
-                    labels[label] = (addr, np)
+                    # Record the non-absolute address and the number of parameters.
+                    labels[label] = (addr, np, False)
                 else:
                     if verbose:
                         if nparams:
@@ -70,6 +76,17 @@ def process(lines, out_f, verbose):
                             print(Label(label + ":"))
                     if nparams:
                         current_label = label
+                l += 1
+                continue
+            elif "=" in line:
+                # Allow label assignments
+                label, value = split_pair(line, "=", l)
+                if "," in value:
+                    value, nparams = split_pair(value, ",", l)
+                    np = get_int(nparams)
+                else:
+                    np = 0
+                labels[label] = (get_int(value), np, True)
                 l += 1
                 continue
 
@@ -187,7 +204,7 @@ def inst_1r(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 def inst_ret(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
 
     values = check_args(args, fmt, l)
-    target, nparams = labels[current_label]
+    target, nparams, absolute = labels[current_label]
 
     out_f.write(struct.pack("<B", n | (nparams << 4)))
     if verbose: print(Int(addr) + ":", Ins(name), nparams, args, values)
@@ -230,8 +247,9 @@ def inst_js(n, fmt, l, name, args, addr, current_label, labels, out_f, verbose):
     # Resolve the label to an index in the instruction output and add it to the
     # base address.
     if name == "js":
-        target, nparams = labels[args[0]]
-        values.append(base_addr + target)
+        target, nparams, absolute = labels[args[0]]
+        if not absolute: target += base_addr
+        values.append(target)
 
     if verbose: print(Int(addr) + ":", Ins(name), nparams, args, values)
 
@@ -271,7 +289,6 @@ instructions = {
     "bge": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     "b": (11, ["Llabel"], 2, inst_b),
     "js": (12, ["Llabel"], 3, inst_js),
-    "jsa": (12, ["Aaddr"], 3, inst_js),
     "ret": (13, [], 1, inst_ret),
     "sys": (15, ["Hvalue"], 1, inst_1r)
     }
