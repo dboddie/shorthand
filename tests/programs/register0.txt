@@ -1,0 +1,7 @@
+zero=r0
+one=r1
+max=r2
+
+lc zero 0
+lc one 1
+lc max 255

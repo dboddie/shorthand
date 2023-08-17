@@ -1,0 +1,141 @@
+decompress: ; src,src_high=compressed data, dest,dest_high=destination start
+            ; end,end_high=destination end (one byte after decompressed data)
+
+count=r0
+v=r1        ; v and offset are not used at the same time
+offset=r1
+
+dest=r2
+dest_low=r3
+dest_high=r3
+
+; Constants
+zero=r4
+one=r5
+three=r6
+four=r7
+mask=r8
+small=r9
+far=r10
+
+special=r11
+
+src=r12
+src_high=r13
+end=r14
+end_high=r15
+
+; Constants
+lc zero 0
+lc one 1
+lc three 3
+lc four 4
+lc mask 0x0f
+lc small 0x7f
+lc far 0x80
+
+ld special src
+js increment_src
+
+decompress_loop:
+
+    ld v src
+    beq v special handle_special
+
+        ; v != special
+        st v dest
+        js increment_src            ; i += 1
+        js increment_dest
+        b decompress_next
+
+    handle_special:
+
+        js increment_src            ; i += 1
+        ld offset src
+        bne offset zero handle_reference
+
+            ; v=0
+            st special dest
+            js increment_src        ; i += 1
+            js increment_dest
+            b decompress_next
+
+        handle_reference:
+
+            bge offset far far_reference
+
+                cpy count offset -4     ; count = offset >> 4
+                add count count three   ; count += 3
+                and offset offset mask  ; offset = offset & 0x0f
+
+                js increment_src_2      ; i += 2
+                js copy_decompressed
+                b decompress_next
+
+            far_reference:
+
+                and offset offset small
+                add offset offset one
+                js increment_src_2      ; i += 2
+
+                ld count src
+
+                js increment_src        ; i += 1
+                js copy_decompressed
+                lc count 4
+                js copy_decompressed    ; copy the extra four bytes
+
+        decompress_next:
+        bne dest end decompress_loop
+        bne dest_high end_high decompress_loop
+
+    sys 0   ; exit
+
+increment_src_2: 0
+    js increment_src
+
+increment_src: 0    # keep the register mapping of the caller
+
+    add src src one
+    adc src_high
+    ret
+
+increment_dest: 0   # keep the register mapping of the caller
+
+    add dest dest one
+    adc dest_high
+    ret
+
+; Define registers used in the subroutine and aliases to those in the caller.
+from_low=r0
+from_high=r1
+cdata=r2
+_count=r3
+_offset=r4
+_dest=r5
+_dest_high=r6
+_zero=r7
+_one=r8
+
+copy_decompressed: 3        ; reserve space for local variables
+
+    cpy from_high _dest_high
+    sub from_low _dest offset   ; from = dest - offset
+    sbc from_high               ; handle carry/borrow
+
+    copy_decompressed_loop:
+
+        ld cdata from_low
+        st cdata _dest 
+
+        add from_low from_low _one
+        adc from_high
+
+        copy_decompressed_loop_next:
+        add _dest _dest _one
+        adc _dest_high
+
+        sub _count _count _one
+        bne _count _zero copy_decompressed_loop
+
+    ret

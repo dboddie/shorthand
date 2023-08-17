@@ -3,9 +3,11 @@
 from common import get_int, opt
 import sys
 
-# Reserve memory for variables.
+# Reserve memory for variables and a return address stack.
 stack = [0] * 128
-sp = 112
+rstack = [0] * 8
+sp = len(stack) - 16
+rsp = len(rstack) - 1
 base_addr = 0
 end = False
 pc = 0
@@ -167,23 +169,23 @@ def inst_bx(opcode):
         pc += 3
 
 def inst_js(opcode):
-    global pc, sp
+    global pc, rsp, sp
 
     args = opcode >> 4
     low = data[pc + 1]
     high = data[pc + 2]
-    sp -= 1
-    stack[sp] = pc + 3
+    rstack[rsp] = pc + 3
+    rsp -= 1
     sp -= args
     pc = low | (high << 8)
 
 def inst_ret(opcode):
-    global pc, sp
+    global pc, rsp, sp
 
     args = opcode >> 4
     sp += args
-    pc = stack[sp]
-    sp += 1
+    rsp += 1
+    pc = rstack[rsp]
 
 def inst_sys(opcode):
     global end
