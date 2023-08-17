@@ -163,8 +163,11 @@ def inst_ret(opcode):
 
 def inst_sys(opcode):
     global end
-    if opcode >> 4 == 0:
+    n = opcode >> 4
+    if n == 0:
         end = True
+    elif n == 15:
+        print(stack[sp:])
     return 1
 
 instructions = [

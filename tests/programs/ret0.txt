@@ -1,3 +1,6 @@
 # Return from subroutine.
+js label
+sys 0
+
 label: 0
 ret
