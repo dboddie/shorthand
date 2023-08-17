@@ -1,0 +1,9 @@
+# Count from 10 to 0
+lc r0 10
+lc r1 1
+lc r2 0
+lc r3 0
+loop:
+    sub r0 r0 r1
+    add r3 r3 r1
+    bne r0 r2 loop

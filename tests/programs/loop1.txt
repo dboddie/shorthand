@@ -1,0 +1,8 @@
+# Count from 0 to 256
+lc r0 0
+lc r1 0
+lc r2 1
+loop:
+    add r0 r0 r2
+    adc r1          # increment r1 if r0 wraps round to zero
+    bne r1 r2 loop

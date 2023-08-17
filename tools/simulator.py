@@ -9,6 +9,8 @@ sp = 112
 base_addr = 0
 end = False
 pc = 0
+# Carry/borrow
+cb = False
 
 def usage(args):
     sys.stderr.write("usage: %s [-c] [-v] <input file>\n" % sys.argv[0])
@@ -48,24 +50,46 @@ def inst_cpy(opcode):
     pc += 2
 
 def inst_add(opcode):
-    global pc
+    global cb, pc
 
     dest = opcode >> 4
     args = data[pc + 1]
     first, second = args & 0x0f, args >> 4
-    stack[sp + dest] = (stack[sp + first] + stack[sp + second]) & 0xff
-    ### Handle carry
+    v = stack[sp + first] + stack[sp + second]
+    stack[sp + dest] = v & 0xff
+    cb = v > 0xff
     pc += 2
 
 def inst_sub(opcode):
-    global pc
+    global cb, pc
 
     dest = opcode >> 4
     args = data[pc + 1]
     first, second = args & 0x0f, args >> 4
-    stack[sp + dest] = (stack[sp + first] - stack[sp + second]) & 0xff
-    ### Handle borrow
+    v = stack[sp + first] - stack[sp + second]
+    stack[sp + dest] = v & 0xff
+    cb = v < 0
     pc += 2
+
+def inst_adc(opcode):
+    global cb, pc
+
+    if cb:
+        dest = opcode >> 4
+        v = stack[sp + dest] + 1
+        stack[sp + dest] = v & 0xff
+        cb = v > 0xff
+    pc += 1
+
+def inst_sbc(opcode):
+    global cb, pc
+
+    if cb:
+        dest = opcode >> 4
+        v = stack[sp + dest] - 1
+        stack[sp + dest] = v & 0xff
+        cb = v < 0
+    pc += 1
 
 def inst_and(opcode):
     global pc
@@ -182,8 +206,8 @@ instructions = [
     inst_ld,        # R(dest)   R(low)      R(high)
     inst_st,        # R(src)    R(low)      R(high)
     inst_bx,        # cond      O(low)      O(high)     R(first)    R(second)
-    None,
-    None,
+    inst_adc,       # R(dest)
+    inst_sbc,       # R(dest)
     inst_js,        # V(args)   A(0)        A(1)        A(2)        A(3)
     inst_ret,       # V(args)
     inst_sys        # V(value)

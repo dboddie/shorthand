@@ -285,6 +285,8 @@ instructions = {
     # Unconditional branch is encoded as a conditional branch with cond=15
     # but no registers.
     "b": (10, ["Llabel"], 2, inst_b),
+    "adc": (11, ["Rdest"], 1, inst_1r),
+    "sbc": (12, ["Rdest"], 1, inst_1r),
     "js": (13, ["Llabel"], 3, inst_js),
     "ret": (14, [], 1, inst_ret),
     "sys": (15, ["Hvalue"], 1, inst_1r)

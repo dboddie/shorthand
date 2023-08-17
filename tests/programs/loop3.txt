@@ -1,0 +1,10 @@
+# Count from 256 to 0
+lc r0 0
+lc r1 1
+lc r2 1
+lc r3 0
+loop:
+    sub r0 r0 r2
+    sbc r1          # decrement r1 if r0 wraps round to 255
+    bne r0 r3 loop
+    bne r1 r3 loop
