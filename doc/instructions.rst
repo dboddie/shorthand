@@ -82,6 +82,8 @@ ld      R(dest)     R(low)      R(high)
 st      R(src)      R(low)      R(high)
 b*      cond        O(low)      O(high)     R(first) R(second)  cond described below
 b       cond=15     O(low)      O(high)                         Unconditional branch
+adc     R(dest)                                                 Increment if carry set
+sbc     R(dest)                                                 Decrement if carry set
 js      V(args)     A(0)        A(1)        A(2)     A(3)
 ret     V(args)
 sys     V(value)
