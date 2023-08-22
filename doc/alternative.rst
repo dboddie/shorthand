@@ -22,7 +22,7 @@ Name    Operands (each 4 bits in size)              Note
 ======  =========================================== =========================================
 lc      R(dest)     V(lo)   V(hi)                   Load constant (sets A)
 cpy     R(dest)     R(src)  V(sh)                   Copy with optional shift (sets A)
-cmp     R(op1)      R(op2)                          Compare R(op1) with R(op2)
+cmp     R(op1)      R(op2)  V(sh)=8                 Compare A with R(op1)
 lr      R(src)                                      Load R(src) into A
 sr      R(dest)                                     Store A into R(dest)
 add     R(other)                                    (sets A)
@@ -53,7 +53,10 @@ otherwise be used for comparisons, modifies the accumulator. It is encoded
 using the `cpy R(dest) R(src) -8` instruction.
 
 The `sys` instruction is also missing because there is no space for it.
-However, a check could be added to the `js` instruction for specific addresses.
+However, a check could be added to the `js` instruction for specific addresses,
+or a special case in the `b*` instructions could be used where offset of zero
+is interpreted as `sys` call, and the *cond* field interpreted as a call
+number.
 
 Patterns
 --------
@@ -65,8 +68,8 @@ Processor   Instructions                    Size
 ==========  =============================== ==========
 6502        Load constant, add, store value 2 + 2 + 2
 VM          Load constant, add, store value 2 + 1 + 2
-6502        Load value, add, store value    2 + 2 + 2
-VM          Load value, add, store value    2 + 1 + 2
+6502        Load zp, add, store zp          2 + 2 + 2
+VM          Load reg, add, store reg        1 + 1 + 1
 ==========  =============================== ==========
 
 If statement:
@@ -74,6 +77,6 @@ If statement:
 =========   ==============================  ==========
 Processor   Instructions                    Size
 =========   ==============================  ==========
-6502        Load value, compare, branch     2 + 2 + 2
-VM          Load value, compare, branch     2 + 1 + 2
+6502        Load zp, compare, zp            2 + 2 + 2
+VM          Load reg, compare, branch       1 + 2 + 2
 =========   ==============================  ==========
