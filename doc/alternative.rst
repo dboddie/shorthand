@@ -17,28 +17,33 @@ registers can be used for different purposes.
 Definitions
 -----------
 
-======  ==========  ======= ======= ======= ======= =========================================
-Name    Operands (each 4 bits in size)              Note
-======  =========================================== =========================================
-lc      R(dest)     V(lo)   V(hi)                   Load constant (sets A)
-cpy     R(dest)     R(src)  V(sh)                   Copy with optional shift (sets A)
-cmp     R(op1)      R(op2)  V(sh)=8                 Compare A with R(op1)
-lr      R(src)                                      Load R(src) into A
-sr      R(dest)                                     Store A into R(dest)
-add     R(other)                                    (sets A)
-sub     R(other)                                    (sets A)
-and     R(other)                                    (sets A)
-or      R(other)                                    (sets A)
-xor     R(other)                                    (sets A)
-ld      R(low)                                      Load from address R(lo) | (R(hi) << 8) (sets A)
-st      R(low)                                      Stores A to address R(hi)R(lo)
-b*      cond        O(lo)   O(hi)                   cond described below
-b       cond=15     O(lo)   O(hi)                   Unconditional branch
-adc     R(other)                                    Increment if carry set
-sbc     R(other)                                    Decrement if carry set
-js      V(args)     A(0)    A(1)    A(2)    A(3)
-ret     V(args)
-======  ==========  ======= ======= ======= ======= =========================================
+======= ======  ==========  ======= ======= ======= ======= =========================================
+Number  Name    Operands (each 4 bits in size)              Note
+======= ======  =========================================== =========================================
+0       lc      R(dest)     V(lo)   V(hi)                   Load constant (sets A)
+------- ------  ----------  ------- ------- ------- ------- -----------------------------------------
+1       cpy     R(dest)     R(src)  V(sh)                   Copy with optional shift (sets A)
+1       cmp     R(op1)      R(op2)  V(sh)=8                 Compare A with R(op1)
+------- ------  ----------  ------- ------- ------- ------- -----------------------------------------
+2       lr      R(src)                                      Load R(src) into A
+3       sr      R(dest)                                     Store A into R(dest)
+4       add     R(other)                                    (sets A)
+5       sub     R(other)                                    (sets A)
+6       and     R(other)                                    (sets A)
+7       or      R(other)                                    (sets A)
+8       xor     R(other)                                    (sets A)
+9       ld      R(low)                                      Load from address R(lo) | (R(hi) << 8) (sets A)
+10      st      R(low)                                      Stores A to address R(hi)R(lo)
+------- ------  ----------  ------- ------- ------- ------- -----------------------------------------
+11      b*      cond        O(lo)   O(hi)                   cond described below
+11      b       cond=15     O(lo)   O(hi)                   Unconditional branch
+11      sys     V(value)    0       0
+------- ------  ----------  ------- ------- ------- ------- -----------------------------------------
+12      adc     R(other)                                    Increment if carry set
+13      sbc     R(other)                                    Decrement if carry set
+14      js      V(args)     A(0)    A(1)    A(2)    A(3)
+15      ret     V(args)
+======= ======  ==========  ======= ======= ======= ======= =========================================
 
 The `lr` and `sr` instructions are encoded 
 
