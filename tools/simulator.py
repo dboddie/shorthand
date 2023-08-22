@@ -123,8 +123,8 @@ def inst_xor(opcode):
 def inst_not(opcode):
     global pc
 
-    dest = opcode >> 4
-    src = data[pc + 1] & 0x0f
+    args = data[pc + 1]
+    dest, src = args & 0x0f, args >> 4
     stack[sp + dest] = ~stack[sp + src]
     pc += 2
 
@@ -179,6 +179,17 @@ def inst_js(opcode):
     sp -= args
     pc = low | (high << 8)
 
+def inst_jss(opcode):
+    global pc, rsp, sp
+
+    args = opcode >> 4
+    offset = data[pc + 1]
+    if offset >= 128: offset -= 256
+    rstack[rsp] = pc + 2
+    rsp -= 1
+    sp -= args
+    pc += offset
+
 def inst_ret(opcode):
     global pc, rsp, sp
 
@@ -204,13 +215,14 @@ instructions = [
     inst_and,       # R(dest)   R(first)    R(second)
     inst_or,        # R(dest)   R(first)    R(second)
     inst_xor,       # R(dest)   R(first)    R(second)
-    inst_not,       # R(dest)   R(src)
     inst_ld,        # R(dest)   R(low)      R(high)
     inst_st,        # R(src)    R(low)      R(high)
     inst_bx,        # cond      O(low)      O(high)     R(first)    R(second)
+#   inst_not,       # R(dest)   R(src)
     inst_adc,       # R(dest)
     inst_sbc,       # R(dest)
     inst_js,        # V(args)   A(0)        A(1)        A(2)        A(3)
+    inst_jss,       # V(args)   O(low)      O(high)
     inst_ret,       # V(args)
     inst_sys        # V(value)
     ]

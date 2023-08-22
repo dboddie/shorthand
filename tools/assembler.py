@@ -261,16 +261,30 @@ def inst_js(n, fmt, l, name, args, addr, current_label, out_f, verbose):
     values = check_args(args, fmt, l)
     # Resolve the label to an index in the instruction output and add it to the
     # base address.
-    if name == "js":
-        target, nparams, absolute = labels[args[0]]
-        if not absolute: target += base_addr
-        values.append(target)
+    target, nparams, absolute = labels[args[0]]
+    if not absolute: target += base_addr
+    values.append(target)
 
     if verbose: print(Int(addr) + ":", Ins(name), nparams, args, values)
 
     out_f.write(struct.pack("<BBB", n | (nparams << 4), values[0] & 0xff, values[0] >> 8))
     return 3
 
+def inst_jss(n, fmt, l, name, args, addr, current_label, out_f, verbose):
+
+    values = check_args(args, fmt, l)
+    # Resolve the label to an index in the instruction output and add it to the
+    # base address.
+    target, nparams, absolute = labels[args[0]]
+    if not absolute: target += base_addr
+    offset = target - addr
+    if offset < -128 or offset > 127: error("short jump out of range", l)
+    values.append(offset)
+
+    if verbose: print(Int(addr) + ":", Ins(name), nparams, args, values)
+
+    out_f.write(struct.pack("<BB", n | (nparams << 4), values[0] & 0xff))
+    return 2
 
 value_limits = {
     "A": (0, 0x10000), "B": (-128, 256), "H": (0, 16), "R": (0, 16), "S": (-7, 16)
@@ -293,21 +307,24 @@ instructions = {
     "and": (4, ["Rdest", "Rfirst", "Rsecond"], 2, inst_3r),
     "or": (5, ["Rdest", "Rfirst", "Rsecond"], 2, inst_3r),
     "xor": (6, ["Rdest", "Rfirst", "Rsecond"], 2, inst_3r),
-    "not": (7, ["Rdest", "Rsrc"], 2, inst_2r),
-    "ld": (8, ["Rdest", "Rlow", "Rhigh?"], 2, inst_ldst),
-    "st": (9, ["Rsrc", "Rlow", "Rhigh?"], 2, inst_ldst),
-    "beq": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
-    "bne": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
-    "blt": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
-    "ble": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
-    "bgt": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
-    "bge": (10, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
+    "ld": (7, ["Rdest", "Rlow", "Rhigh?"], 2, inst_ldst),
+    "st": (8, ["Rsrc", "Rlow", "Rhigh?"], 2, inst_ldst),
+    "beq": (9, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
+    "bne": (9, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
+    "blt": (9, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
+    "ble": (9, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
+    "bgt": (9, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
+    "bge": (9, ["Rfirst", "Rsecond", "Llabel"], 3, inst_bx),
     # Unconditional branch is encoded as a conditional branch with cond=15
     # but no registers.
-    "b": (10, ["Llabel"], 2, inst_b),
-    "adc": (11, ["Rdest"], 1, inst_1r),
-    "sbc": (12, ["Rdest"], 1, inst_1r),
-    "js": (13, ["Llabel"], 3, inst_js),
+    "b": (9, ["Llabel"], 2, inst_b),
+    # Overload the branch instruction with cond=0 and no offset to encode a
+    # not instruction.
+    "not": (9, ["Rdest", "Rsrc"], 2, inst_2r),
+    "adc": (10, ["Rdest"], 1, inst_1r),
+    "sbc": (11, ["Rdest"], 1, inst_1r),
+    "js": (12, ["Llabel"], 3, inst_js),
+    "jss": (13, ["Llabel"], 2, inst_jss),
     "ret": (14, [], 1, inst_ret),
     "sys": (15, ["Hvalue"], 1, inst_1r)
     }

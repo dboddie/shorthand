@@ -67,27 +67,28 @@ Offsets are indicated by O.
 
 Values are indicated by V.
 
-======  ==========  ========    ==========  ==========  ======  ======================================
-Name    Operands (each 4 bits in size)                          Note
-======  ======================================================  ======================================
-lc      R(dest)     V(low)      V(high)                         Load constant
-cpy     R(dest)     R(src)      V(shift)                        Copy with optional shift
-add     R(dest)     R(first)    R(second)
-sub     R(dest)     R(first)    R(second)
-and     R(dest)     R(first)    R(second)
-or      R(dest)     R(first)    R(second)
-xor     R(dest)     R(first)    R(second)
-not     R(dest)     R(src)
-ld      R(dest)     R(low)      R(high)
-st      R(src)      R(low)      R(high)
-b*      cond        O(low)      O(high)     R(first) R(second)  cond described below
-b       cond=15     O(low)      O(high)                         Unconditional branch
-adc     R(dest)                                                 Increment if carry set
-sbc     R(dest)                                                 Decrement if carry set
-js      V(args)     A(0)        A(1)        A(2)     A(3)
-ret     V(args)
-sys     V(value)
-======  ==========  ========    ==========  ======== ======= ======================================
+======  ======  ==========  ==========  ==========  ==========  ==========  =========================
+Number  Name    Operands (each 4 bits in size)                              Note
+======  ======  ==========================================================  =========================
+0       lc      R(dest)     V(low)      V(high)                             Load constant
+1       cpy     R(dest)     R(src)      V(shift)                            Copy with optional shift
+2       add     R(dest)     R(first)    R(second)                           Can set carry
+3       sub     R(dest)     R(first)    R(second)                           Can set carry
+4       and     R(dest)     R(first)    R(second)
+5       or      R(dest)     R(first)    R(second)
+6       xor     R(dest)     R(first)    R(second)
+7       ld      R(dest)     R(low)      R(high)
+8       st      R(src)      R(low)      R(high)
+9       b*      cond        O(low)      O(high)     R(first)    R(second)   cond described below
+9       b       cond=15     O(low)      O(high)                             Unconditional branch
+9       not     cond=0      R(dest)     R(src)
+10      adc     R(dest)                                                     Increment if carry set
+11      sbc     R(dest)                                                     Decrement if carry set
+12      js      V(args)     A(0)        A(1)        A(2)        A(3)
+13      jss     V(args)     O(low)      O(high)
+14      ret     V(args)
+15      sys     V(value)
+======  ======  ==========  ==========  ==========  ==========  ==========  =========================
 
 The *cond* operand enables conditional execution for branch instructions.
 Each of the lowest 3 bits are used to indicate that the instruction should be
@@ -110,6 +111,12 @@ if the value held by *R(first)* is greater than or equal to that held by
 *R(second)*.
 
 Unconditional branches are encoded with a *cond* value of 7.
+
+The `cpy` instruction encodes the extent of a right shift operation on the
+value held in the source register. Left shifts are expressed as negative shift
+values using the top bit of the operand as a sign bit. The allowed range of
+shifts is -7 to 7 inclusive. Since -8 (0x8) is not used, the encoding for
+`cpy R(dest) R(src) -8` could be used for another instruction.
 
 Patterns
 --------

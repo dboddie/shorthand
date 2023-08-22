@@ -35,7 +35,7 @@ lc small 0x7f
 lc far 0x80
 
 ld special src
-js increment_src
+jss increment_src
 
 decompress_loop:
 
@@ -44,46 +44,46 @@ decompress_loop:
 
         ; v != special
         st v dest
-        js increment_src            ; i += 1
-        js increment_dest
+        jss increment_src            ; i += 1
+        jss increment_dest
         b decompress_next
 
     handle_special:
 
-        js increment_src            ; i += 1
+        jss increment_src            ; i += 1
         ld offset src
         bne offset zero handle_reference
 
             ; v=0
             st special dest
-            js increment_src        ; i += 1
-            js increment_dest
+            jss increment_src        ; i += 1
+            jss increment_dest
             b decompress_next
 
         handle_reference:
 
             bge offset far far_reference
 
-                cpy count offset -4     ; count = offset >> 4
+                cpy count offset 4      ; count = offset >> 4
                 add count count three   ; count += 3
                 and offset offset mask  ; offset = offset & 0x0f
 
-                js increment_src_2      ; i += 2
-                js copy_decompressed
+                jss increment_src_2      ; i += 2
+                jss copy_decompressed
                 b decompress_next
 
             far_reference:
 
                 and offset offset small
                 add offset offset one
-                js increment_src_2      ; i += 2
+                jss increment_src_2      ; i += 2
 
                 ld count src
 
-                js increment_src        ; i += 1
-                js copy_decompressed
+                jss increment_src        ; i += 1
+                jss copy_decompressed
                 lc count 4
-                js copy_decompressed    ; copy the extra four bytes
+                jss copy_decompressed    ; copy the extra four bytes
 
         decompress_next:
         bne dest end decompress_loop
@@ -92,7 +92,7 @@ decompress_loop:
     sys 0   ; exit
 
 increment_src_2: 0
-    js increment_src
+    jss increment_src
 
 increment_src: 0    # keep the register mapping of the caller
 

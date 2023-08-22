@@ -3,3 +3,4 @@ and r0 r1 r2
 or  r3 r4 r5
 xor r6 r7 r8
 not r9 r10
+sys 0

@@ -1,0 +1,6 @@
+# Jump to subroutine at a label.
+jss subroutine
+sys 0
+
+subroutine: 0
+ret
