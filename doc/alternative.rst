@@ -22,8 +22,8 @@ Number  Name    Operands (each 4 bits in size)              Note
 ======= ======  =========================================== =========================================
 0       lc      R(dest)     V(lo)   V(hi)                   Load constant (sets A)
 ------- ------  ----------  ------- ------- ------- ------- -----------------------------------------
-1       cpy     R(dest)     R(src)  V(sh)                   Copy with optional shift (sets A)
-1       cmp     R(op1)      R(op2)  V(sh)=8                 Compare A with R(op1)
+1       shr     V(sh)                                       Shift right (sets A)
+1       not     V(sh)=8                                     A = !A
 ------- ------  ----------  ------- ------- ------- ------- -----------------------------------------
 2       lr      R(src)                                      Load R(src) into A
 3       sr      R(dest)                                     Store A into R(dest)
@@ -53,15 +53,11 @@ the `cpy` instruction could be modified to treat the special case where the
 shift is -8 as a `not` instruction, using one more byte than before. However,
 the `cmp` instruction currently uses that encoding.
 
-The `cmp` instruction is needed because the `sub` instruction, which could
-otherwise be used for comparisons, modifies the accumulator. It is encoded
-using the `cpy R(dest) R(src) -8` instruction.
+A `cmp` instruction is not needed because the `sub` instruction can be
+implemented to set the flags, but it modifies the accumulator as a result.
 
-The `sys` instruction is also missing because there is no space for it.
-However, a check could be added to the `js` instruction for specific addresses,
-or a special case in the `b*` instructions could be used where offset of zero
-is interpreted as `sys` call, and the *cond* field interpreted as a call
-number.
+The `sys` instruction is encoded as a special case in the `b*` instructions
+where an offset of zero implies that the *cond* field contains a call number.
 
 Patterns
 --------
