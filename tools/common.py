@@ -31,7 +31,7 @@ def get_int(s):
 def opt(args, name, values=0, default=""):
 
     has_opt = name in args
-    v = [default]
+    v = default[:]
     while name in args:
         at = args.index(name)
         v = args[at+1:at+1+values]
@@ -41,5 +41,7 @@ def opt(args, name, values=0, default=""):
         return has_opt
     elif not v:
         usage(args)
+    elif values > 1:
+        return has_opt, v
     else:
         return has_opt, v[0]

@@ -13,9 +13,13 @@ end = False
 pc = 0
 # Carry/borrow
 cb = False
+breakpoints = set()
 
 def usage(args):
-    sys.stderr.write("usage: %s [-c] [-v] <input file>\n" % sys.argv[0])
+    sys.stderr.write("usage: %s [-c] [-v] [-b <base address>] "
+                     "[-d <data address> <data file>] "
+                     "[-x <address> <length>] [-s] "
+                     "<input file>\n" % sys.argv[0])
     sys.exit(1)
 
 def process():
@@ -25,10 +29,41 @@ def process():
     while not end:
         opcode = data[pc]
         inst = instructions[opcode & 0x0f]
-        if verbose: print(pc, inst)
+        if single or verbose or pc in breakpoints:
+            print(pc, inst)
+            if single or pc in breakpoints:
+                print(stack[sp:sp + 16])
+                print(" ".join([("%02x" % x) for x in stack[sp:sp + 16]]))
+                process_command(input(">"))
         inst(opcode)
 
     print(stack[sp:])
+
+def process_command(t):
+    global end, single
+
+    single = True
+
+    if extract:
+        b = data[ex_addr:ex_addr + ex_length]
+        if t == "x":
+            i = 0
+            while i < ex_length:
+                for x in b[i:i + 16]:
+                    print("%02x" % x, end=" ")
+                i += 16
+                print()
+        elif t == "tx":
+            print(bytes(b))
+    elif t == "q": end = True
+    elif t == "c": single = False
+    elif t.startswith("b"):
+        addr = t[1:].rstrip()
+        if not addr:
+            addr = pc
+        else:
+            addr = int(addr)
+        breakpoints.add(addr)
 
 def inst_lc(opcode):
     global pc
@@ -120,7 +155,7 @@ def inst_xor(opcode):
     stack[sp + dest] = stack[sp + first] ^ stack[sp + second]
     pc += 2
 
-def inst_not(opcode):
+def inst_not():
     global pc
 
     args = data[pc + 1]
@@ -145,7 +180,7 @@ def inst_st(opcode):
     args = data[pc + 1]
     low, high = args & 0x0f, args >> 4
     addr = stack[sp + low] | (stack[sp + high] << 8)
-    data[addr] = stack[sp + dest]
+    data[addr] = stack[sp + src]
     pc += 2
 
 def inst_bx(opcode):
@@ -154,7 +189,10 @@ def inst_bx(opcode):
     cond = opcode >> 4
     offset = data[pc + 1]
     flags = 0
-    if cond < 8:
+    if cond == 0:
+        inst_not()
+        return
+    elif cond < 8:
         args = data[pc + 2]
         first, second = args & 0x0f, args >> 4
         if offset >= 128: offset -= 256
@@ -234,6 +272,11 @@ if __name__ == "__main__":
     colour = opt(args, "-c")
     base, base_v = opt(args, "-b", 1, "0")
     base_addr = get_int(base_v)
+    single = opt(args, "-s")
+    da, (data_addr, data_file) = opt(args, "-d", 2, ["0", ""])
+    extract, (ex_addr, ex_length) = opt(args, "-x", 2, ["0", "0"])
+    ex_addr = get_int(ex_addr)
+    ex_length = get_int(ex_length)
 
     if len(args) != 2:
         usage(args)
@@ -244,5 +287,16 @@ if __name__ == "__main__":
     # Append a sys 0 (exit) call.
     data.append(0x0f)
     data += [0] * (65536 - len(data))
+
+    if da:
+        data_addr = get_int(data_addr)
+        for x in open(data_file, "rb").read():
+            data[data_addr] = x
+            data_addr += 1
+
     process()
+
+    process_command("x")
+    process_command("tx")
+
     sys.exit()

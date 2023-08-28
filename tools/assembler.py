@@ -29,7 +29,7 @@ def error(msg, l):
     sys.exit(1)
 
 def usage(args):
-    sys.stderr.write("usage: %s [-c] [-v] <input file> <output file>\n" % sys.argv[0])
+    sys.stderr.write("usage: %s [-c] [-v] [-b <base address>] <input file> <output file>\n" % sys.argv[0])
     sys.exit(1)
 
 def remove_comments(line):
@@ -63,7 +63,7 @@ def process(lines, out_f, verbose):
 
     for scan in 0, 1:
         l = 1
-        addr = 0
+        addr = base_addr
         for line in lines:
             line = remove_comments(line)
 
@@ -153,7 +153,7 @@ def check_args(args, fmt, l):
             # Convert negative numbers to appropriate positive numbers.
             if v < 0: v += upper
         except ValueError:
-            error("argument for %s not a valid value" % p, l)
+            error("argument for %s (%s) not a valid value" % (p, repr(a)), l)
 
         values.append(v)
 
@@ -262,7 +262,6 @@ def inst_js(n, fmt, l, name, args, addr, current_label, out_f, verbose):
     # Resolve the label to an index in the instruction output and add it to the
     # base address.
     target, nparams, absolute = labels[args[0]]
-    if not absolute: target += base_addr
     values.append(target)
 
     if verbose: print(Int(addr) + ":", Ins(name), nparams, args, values)
@@ -276,7 +275,6 @@ def inst_jss(n, fmt, l, name, args, addr, current_label, out_f, verbose):
     # Resolve the label to an index in the instruction output and add it to the
     # base address.
     target, nparams, absolute = labels[args[0]]
-    if not absolute: target += base_addr
     offset = target - addr
     if offset < -128 or offset > 127: error("short jump out of range", l)
     values.append(offset)
@@ -334,7 +332,7 @@ if __name__ == "__main__":
     args = sys.argv[:]
     verbose = opt(args, "-v")
     colour = opt(args, "-c")
-    base, base_v = opt(args, "-b", 1, "0")
+    base, base_v = opt(args, "-b", 1, ["0"])
     base_addr = get_int(base_v)
 
     if colour:
