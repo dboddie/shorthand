@@ -6,7 +6,6 @@ v=r1        ; v and offset are not used at the same time
 offset=r1
 
 dest=r2
-dest_low=r3
 dest_high=r3
 
 ; Constants
@@ -24,6 +23,13 @@ src=r12
 src_high=r13
 end=r14
 end_high=r15
+
+lc src 0x00             ; src=4096
+lc src_high 0x10
+lc dest 0x00            ; dest=8192
+lc dest_high 0x20
+lc end 0xa4             ; end = dest + <length of sample.txt>
+lc end_high 0x20
 
 ; Constants
 lc zero 0
@@ -68,7 +74,7 @@ decompress_loop:
                 add count count three   ; count += 3
                 and offset offset mask  ; offset = offset & 0x0f
 
-                jss increment_src_2      ; i += 2
+                jss increment_src       ; i += 1
                 jss copy_decompressed
                 b decompress_next
 
@@ -76,23 +82,25 @@ decompress_loop:
 
                 and offset offset small
                 add offset offset one
-                jss increment_src_2      ; i += 2
+                jss increment_src       ; i += 1
+
+                ; Since the number of bytes to copy can exceed an 8-bit value,
+                ; split the copy into two, but skip the first if it is zero.
 
                 ld count src
-
-                jss increment_src        ; i += 1
+                beq count zero skip_copy
                 jss copy_decompressed
+
+                skip_copy:
                 lc count 4
-                jss copy_decompressed    ; copy the extra four bytes
+                jss copy_decompressed   ; copy the extra four bytes
+                jss increment_src       ; i += 1
 
         decompress_next:
         bne dest end decompress_loop
         bne dest_high end_high decompress_loop
 
     sys 0   ; exit
-
-increment_src_2: 0
-    jss increment_src
 
 increment_src: 0    # keep the register mapping of the caller
 
@@ -120,7 +128,7 @@ _one=r8
 copy_decompressed: 3        ; reserve space for local variables
 
     cpy from_high _dest_high
-    sub from_low _dest offset   ; from = dest - offset
+    sub from_low _dest _offset  ; from = dest - offset
     sbc from_high               ; handle carry/borrow
 
     copy_decompressed_loop:
