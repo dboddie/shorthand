@@ -1,0 +1,132 @@
+body {
+  background: #e0e0f0;
+  font-size: 12pt;
+  line-height: 15pt
+}
+
+.navbar {
+  background: #f0e8e0;
+  padding-top: 0.25em;
+  padding-bottom: 0.25em;
+  border: 1px solid #a0a0a0;
+  color: #202020
+}
+
+.navbar span {
+  float: left;
+  text-align: center;
+  width: 33%
+}
+
+.centre {
+  text-align: center
+}
+
+h1.title {
+  text-align: center;
+  font-size: 26pt;
+  border-top: none;
+  padding-top: none
+}
+
+h1 {
+  font-size: 22pt;
+  border-top: solid 1px #c0c0d0;
+  padding-top: 0.5em
+}
+
+h2 {
+  font-size: 18pt
+}
+
+h3 {
+  font-size: 16pt
+}
+
+h1,h2,h3 {
+  font-family: sans-serif;
+  font-weight: normal
+}
+
+pre {
+  background-color: #f8f8e8;
+  font-size: 11pt;
+  padding: 0.5em;
+  border: 1px solid #808080
+}
+
+.highlight pre {
+  background-color: #181010;
+  border: 0.25em solid #806060;
+  color: #e0e0e0;
+  padding-bottom: 0.25em;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  padding-top: 0.25em;
+}
+
+tt {
+  background-color: #f8f8e8;
+  padding-left: 0.25em;
+  padding-right: 0.25em
+}
+
+span.caption {
+  line-height: 1.5em;
+  font-style: italic
+}
+
+table {
+  background-color: #f0f0f0
+}
+
+.highlight .c1 {
+  color: #00c000
+}
+
+.highlight .cm {
+  color: #00c000
+}
+
+.highlight .k {
+  color: #a0a060;
+  font-weight: bold
+}
+
+.highlight .mi {
+  color: #c0a000
+}
+
+.highlight .o {
+  color: #c0c000
+}
+
+.highlight .kc {
+  color: #f06040
+}
+
+.highlight .nl {
+  color: #f06040
+}
+
+.highlight .kt {
+  color: #f0a0a0
+}
+
+.highlight .s {
+  color: #40c0f0
+}
+
+.highlight .cpf {
+  color: #40c0f0
+}
+
+.centre img.dark {
+    border: 0.25em solid #c0b0a0;
+    padding: 0.125em
+}
+
+.centre img.light {
+    border: 0.25em solid #d0c0b0;
+    padding: 0.125em
+}
