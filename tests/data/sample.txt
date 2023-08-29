@@ -1,0 +1,3 @@
+This is a sample of text to be compressed and supplied to the decompress test
+program. The larger the quantity of text, the better the compression is
+likely to be.
