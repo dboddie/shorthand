@@ -1,5 +1,24 @@
 #!/usr/bin/env python3
 
+"""
+simulator.py - A simulator for a virtual instruction set.
+
+Copyright (C) 2023 David Boddie <david@boddie.org.uk>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
 from common import get_int, opt
 import sys
 
@@ -201,7 +220,7 @@ def inst_bx(opcode):
         elif v == 0: flags = 2
         elif v > 0: flags = 4
 
-    if flags & cond != 0 or cond >= 8:
+    if flags & cond != 0 or cond >= 7:
         pc += offset
     else:
         pc += 3
@@ -256,7 +275,8 @@ instructions = [
     inst_ld,        # R(dest)   R(low)      R(high)
     inst_st,        # R(src)    R(low)      R(high)
     inst_bx,        # cond      O(low)      O(high)     R(first)    R(second)
-#   inst_not,       # R(dest)   R(src)
+#   b               # cond=7    O(low)      O(high)
+#   inst_not,       # cond=0    R(dest)     R(src)
     inst_adc,       # R(dest)
     inst_sbc,       # R(dest)
     inst_js,        # V(args)   A(0)        A(1)        A(2)        A(3)

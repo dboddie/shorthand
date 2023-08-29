@@ -242,7 +242,7 @@ def inst_b(n, fmt, l, name, args, addr, current_label, out_f, verbose):
 
     values = check_args(args, fmt, l)
     # Use a special value for unconditional branches.
-    cond = 15
+    cond = 7
 
     # Obtain the target address, discarding the number of parameters for
     # regular labels.

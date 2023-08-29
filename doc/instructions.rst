@@ -16,11 +16,11 @@ machine code of a specific CPU, like the 6502, the virtual machine uses a set
 of instructions that operate on a collection of virtual registers.
 
 There are 16 general purpose registers, each 8 bits wide. Pairs of registers
-are used to refer to addresses that are 16 bits wide. Registers are implemented
-as bytes in a block of memory that can hold a larger number of registers than a
-default set of 16. By treating registers as elements in a byte array whose
-base in the larger memory block can be shifted, windows of registers can be
-used for different purposes.
+(typically adjacent) are used to refer to addresses that are 16 bits wide.
+Registers are implemented as bytes in a block of memory that can hold a larger
+number of registers than a default set of 16. By treating registers as elements
+in a byte array whose base in the larger memory block can be shifted, windows
+of registers can be used for different purposes.
 
 Subroutines
 -----------
@@ -41,7 +41,7 @@ since it would always be the same for any call to the subroutine.
 
 Since it is easier and more consistent to let the subroutine's requirements
 determine the size of the adjustment, and since a positive adjustment requires
-that the calling routine's requirements to be taken into account, a negative
+the calling routine's requirements to be taken into account, a negative
 adjustment is used.
 
 Format
@@ -59,13 +59,11 @@ Definitions
 
 Register operands are indicated by R.
 
-Constant values are indicated by C.
-
 Addresses are indicated by A.
 
 Offsets are indicated by O.
 
-Values are indicated by V.
+Integer values are indicated by V, and are 4 bits in size.
 
 ======  ======  ==========  ==========  ==========  ==========  ==========  =========================
 Number  Name    Operands (each 4 bits in size)                              Note
@@ -80,7 +78,7 @@ Number  Name    Operands (each 4 bits in size)                              Note
 7       ld      R(dest)     R(low)      R(high)
 8       st      R(src)      R(low)      R(high)
 9       b*      cond        O(low)      O(high)     R(first)    R(second)   cond described below
-9       b       cond=15     O(low)      O(high)                             Unconditional branch
+9       b       cond=7      O(low)      O(high)                             Unconditional branch
 9       not     cond=0      R(dest)     R(src)
 10      adc     R(dest)                                                     Increment if carry set
 11      sbc     R(dest)                                                     Decrement if carry set
@@ -112,11 +110,11 @@ if the value held by *R(first)* is greater than or equal to that held by
 
 Unconditional branches are encoded with a *cond* value of 7.
 
-The `cpy` instruction encodes the extent of a right shift operation on the
+The ``cpy`` instruction encodes the extent of a right shift operation on the
 value held in the source register. Left shifts are expressed as negative shift
 values using the top bit of the operand as a sign bit. The allowed range of
 shifts is -7 to 7 inclusive. Since -8 (0x8) is not used, the encoding for
-`cpy R(dest) R(src) -8` could be used for another instruction.
+``cpy R(dest) R(src) -8`` could be used for another instruction.
 
 Patterns
 --------
