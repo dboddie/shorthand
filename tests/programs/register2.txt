@@ -1,0 +1,4 @@
+; This should fail because register definitions can currently only assign
+; explicit register names to aliases.
+zero=r0
+one=zero

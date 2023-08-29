@@ -1,2 +1,3 @@
 # Load constants
 lc r0 123
+lc r1 -42
