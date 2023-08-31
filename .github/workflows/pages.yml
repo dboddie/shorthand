@@ -24,6 +24,7 @@ jobs:
       - name: Run the build script.
         run: |
           ./tools/makedocs.sh
+          mv html/README.html html/index.html
       - name: Upload GitHub Pages artifacts
         uses: actions/upload-pages-artifact@v0
         with:
