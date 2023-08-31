@@ -17,6 +17,10 @@ jobs:
       fail-fast: false
 
     steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y python3-docutils python3-pygments
       - name: Run the build script.
         run: |
           ./tools/makedocs.sh
