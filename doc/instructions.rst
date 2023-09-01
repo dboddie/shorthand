@@ -1,8 +1,8 @@
 Instructions
 ============
 
-Summary
--------
+Introduction
+------------
 
 A minimal set of virtual machine instructions is defined with the following
 aims:
@@ -15,8 +15,16 @@ Instead of using a stack-based approach, or mapping closely to the semantics of
 machine code of a specific CPU, like the 6502, the virtual machine uses a set
 of instructions that operate on a collection of virtual registers.
 
-There are 16 general purpose registers, each 8 bits wide. Pairs of registers
-(typically adjacent) are used to refer to addresses that are 16 bits wide.
+Some motivations for defining an instruction set like this can be found in the
+`background`_ document.
+
+Registers
+---------
+
+The instruction set references 16 general purpose registers, each 8 bits wide.
+Pairs of registers (typically adjacent) are used to refer to addresses that are
+16 bits wide.
+
 Registers are implemented as bytes in a block of memory that can hold a larger
 number of registers than a default set of 16. By treating registers as elements
 in a byte array whose base in the larger memory block can be shifted, windows
@@ -116,23 +124,4 @@ values using the top bit of the operand as a sign bit. The allowed range of
 shifts is -7 to 7 inclusive. Since -8 (0x8) is not used, the encoding for
 ``cpy R(dest) R(src) -8`` could be used for another instruction.
 
-Patterns
---------
-
-Add two values:
-
-=========   ==============================  ==========
-Processor   Instructions                    Size
-=========   ==============================  ==========
-6502        Load value, add, store value    2 + 2 + 2
-VM          Add                             2
-=========   ==============================  ==========
-
-If statement:
-
-=========   ==============================  ==========
-Processor   Instructions                    Size
-=========   ==============================  ==========
-6502        Load value, compare, branch     2 + 2 + 2
-VM          Branch                          3
-=========   ==============================  ==========
+.. _`background`: background.rst
