@@ -1,0 +1,461 @@
+.org $0e02
+
+; Programs including this file must define:
+; program_start : The start address of the bytecodes in memory.
+; stack_top     : The address in zero page of the top byte in the parameter stack.
+; rstack_top    : The address in zero page of the top byte in the return address stack.
+
+; Program counter
+.alias pc $70
+.alias pc_low $70
+.alias pc_high $71
+; Variable/parameter stack
+.alias sp $72
+; Return address stack
+.alias rsp $73
+; Carry/borrow
+.alias cb $74
+.alias dest $75
+.alias first $76
+.alias second $77
+.alias extra $78
+
+process:
+
+    lda #0
+    sta cb
+
+    ; Reserve memory for variables and a return address stack.
+    lda #rstack_top
+    sta rsp
+    lda #stack_top
+    sta sp
+
+    lda #<program_start
+    sta pc_low
+    lda #>program_start
+    sta pc_high
+
+    ldy #0
+
+    next_instruction:
+    lda (pc),y
+    and #$0f                ; Extract the instruction number.
+    tax
+    lda lookup_high,x       ; Load the high byte of the routine address.
+    pha                     ; Store the address in a fixed address.
+    lda lookup_low,x        ; Load the low byte of the routine address.
+    pha                     ; Store the address in a fixed address.
+
+    ; Jump to the address held by the temporary address. Instructions will
+    ; jump back to the next_instruction label to continue execution.
+    rts
+
+lsr_4:
+    lsr
+    lsr
+    lsr
+    lsr
+    clc
+    ret
+
+inc_pc_2:
+    jsr inc_pc
+inc_pc:
+    inc pc
+    bne +
+    inc [pc + 1]
+*   rts
+
+next_byte:
+    iny
+    lda (pc),y
+    dey
+    rts
+
+split_args:
+    sta first
+    jsr lsr_4
+    sta second
+    lda first
+    and #$0f
+    sta first
+    rts
+
+load_first_second:
+    ldy first
+    lda (sp),y
+    sta first
+    ldy second
+    lda (sp),y
+    sta second
+    rts
+
+cond_set_cb:
+    ; store C in cb
+    lda #0
+    rol
+    sta cb
+    rts
+
+store_dest:
+    ldy dest
+    sta (sp),y
+    rts
+
+inst_lc:    ; A=opcode
+
+    jsr lsr_4       ; dest
+    sta dest
+    jsr next_byte   ; value
+    ldy dest
+    sta (sp),y
+    jsr inc_pc_2
+    jmp next_instruction
+
+inst_cpy:   ; A=opcode
+
+    jsr lsr_4       ; dest
+    sta dest
+    jsr next_byte
+    jsr split_args  ; first=src, second=shift
+    lda second      ; shift
+    tax
+    cmp #8
+    bcc cpy_shift_lt_8
+        adc #248    ; 8-15 -> 248-255 (-8 to -1)
+        ldy src
+        lda (sp),y  ; value
+        cpy_asl_loop:
+            asl a
+            inx
+            bne cpy_asl_loop
+        beq cpy_shift_copy
+    cpy_shift_lt_8:
+        ldy src
+        lda (sp),y  ; value
+        cpy_lsr_loop:
+            lsr a
+            dex
+            bne cpy_lsr_loop
+    cpy_shift_copy:
+    clc
+    ldy dest
+    sta (sp),y
+    stack[sp + dest] = (value & 0xff)
+    jsr inc_pc_2
+    jmp next_instruction
+
+inst_add:   ; A=opcode
+    global cb, pc
+
+    jsr lsr_4       ; dest
+    sta dest
+    jsr next_byte
+    jsr split_args
+    jsr load_first_second
+    clc
+    lda first
+    adc second      ; A = first + second
+    jsr cond_set_cb
+    jsr store_dest
+    jsr inc_pc_2
+    jmp next_instruction
+
+inst_sub:   ; A=opcode
+    global cb, pc
+
+    jsr lsr_4       ; dest
+    sta dest
+    jsr next_byte
+    jsr split_args
+    jsr load_first_second
+    sec
+    lda first
+    sbc second      ; A = first + second
+    jsr cond_set_cb ; inverted?
+    jsr store_dest
+    jsr inc_pc_2
+    jmp next_instruction
+
+inst_adc:   ; A=opcode
+    lda cb
+    beq inst_adc_ret
+
+        jsr lsr_4       ; dest
+        tay
+        lda (sp),y
+        adc #1
+        jsr cond_set_cb
+        jsr store_dest
+
+    inst_adc_ret:
+    jsr inc_pc
+    jmp next_instruction
+
+inst_sbc:   ; A=opcode
+    lda cb
+    beq inst_adc_ret
+
+        jsr lsr_4       ; dest
+        tay
+        lda (sp),y
+        sec
+        sbc #1
+        jsr cond_set_cb ; inverted?
+        ldy dest
+        sta (sp),y
+
+    inst_adc_ret:
+    jsr inc_pc
+    jmp next_instruction
+
+inst_and:   ; A=opcode
+
+    jsr lsr_4       ; dest
+    sta dest
+    jsr next_byte
+    jsr split_args
+    jsr load_first_second
+    lda first
+    and second
+    jsr store_dest
+    jsr inc_pc_2
+    jmp next_instruction
+
+inst_or:    ; A=opcode
+
+    jsr lsr_4       ; dest
+    sta dest
+    jsr next_byte
+    jsr split_args
+    jsr load_first_second
+    lda first
+    ora second
+    jsr store_dest
+    jsr inc_pc_2
+    jmp next_instruction
+
+inst_xor:   ; A=opcode
+
+    jsr lsr_4       ; dest
+    sta dest
+    jsr next_byte
+    jsr split_args
+    jsr load_first_second
+    lda first
+    eor second
+    jsr store_dest
+    jsr inc_pc_2
+    jmp next_instruction
+
+inst_ld:    ; A=opcode
+
+    jsr lsr_4       ; dest
+    sta dest
+    jsr next_byte
+    jsr split_args
+    jsr load_first_second   ; first=low, second=high
+    ldy #0
+    lda (first),y   ; load the contents of the address
+    jsr store_dest
+    jsr inc_pc_2
+    jmp next_instruction
+
+inst_st:    ; A=opcode
+
+    jsr lsr_4       ; src
+    sta src
+    jsr inc_pc
+    jsr next_byte
+    jsr split_args
+    jsr load_first_second   ; first=low, second=high
+    ldy src
+    lda (sp),y
+    ldy #0
+    sta (first),y
+    jsr inc_pc_2
+    jmp next_instruction
+
+.alias offset dest
+.alias cond extra
+
+; Map from 6502 processor flags (--ZC) to cond values with bits (-GEL), ignoring
+; signed comparisons.
+cond_flags:
+;     -- -C Z- ZC
+.byte 1, 4, 0, 6
+;     lt gt -  eq
+
+; The inst_bx routine implements conditional branches (beq, bge, bgt, ble,
+; blt, bne) and unconditional branches (b), as well as the not instruction.
+
+inst_bx:    ; A=opcode
+
+    jsr lsr_4
+    sta cond
+    cmp #0
+    bne inst_not    ; If cond == 0 this is a not instruction.
+
+    jsr next_byte
+    sta offset
+
+    lda cond
+    cmp #7
+    bcs inst_bx_branch
+
+    tax
+    lda cond_flags,x
+
+    lda #0
+    sta flags
+    
+    jsr inc_pc
+    jsr next_byte   ; read pc + 2 (first and second operands)
+    jsr split_args
+    jsr load_first_second
+
+    lda first
+    cmp second
+    php
+    pla                 ; N-----ZC
+    and #$03            ; Only examine Z and C flags.
+    tax
+    lda cond_flags      ; Obtain the corresponding cond bits.
+    and cond            ; Compare with the instruction's cond bits.
+
+    bne inst_bx_branch  ; Branch if a match occurred.
+
+inst_bx_cond_fail:
+    jsr inc_pc_2
+    jmp next_instruction
+
+inst_bx_branch:
+    clc
+    lda offset
+    adc pc_low
+    sta pc_low
+    bcc inst_bx_ret
+    inc pc_high
+
+inst_bx_ret:
+    jmp next_instruction
+
+inst_not:
+    jsr next_byte
+    jsr split_args
+    jsr load_first_second   ; first=dest, second=src
+    ; A=second (src)
+    eor #255
+    ldy first
+    sta (sp),y
+    jsr inc_pc_2
+    jmp next_instruction
+
+.alias args dest
+.alias low first
+.alias high second
+
+inst_js:    ; A=opcode
+
+    jsr lsr_4
+    sta args
+    jsr next_byte       ; load (inst_pc + 1)
+    sta low
+    jsr inc_pc          ; pc = inst_pc + 1
+    jsr next_byte       ; load (inst_pc + 2)
+    sta high
+    jsr inc_pc_2        ; pc = inst_pc + 3
+    jsr push_pc
+    jsr push_args
+    lda low
+    sta pc_low
+    lda high
+    sta pc_high
+    rts
+
+push_pc:
+    lda pc_high
+    sta rsp
+    dec rsp
+    lda pc_low
+    dec rsp
+    rts
+
+push_args:
+    sec
+    lda sp
+    sbc args
+    sta sp
+    clc
+    rts
+
+inst_jss:   ; A=opcode
+
+    jsr lsr_r
+    sta args
+    jsr next_byte
+    sta offset
+    jsr inc_pc_2
+    jsr push_pc
+    jsr push_args
+    jmp inst_bx_branch
+
+inst_ret:   ; A=opcode
+
+    jsr lsr_r   ; args
+    adc sp
+    sta sp
+    inc rsp
+    lda pc_low
+    inc rsp
+    lda pc_high
+    jmp next_instruction
+
+inst_sys:   ; A=opcode
+
+    jsr lsr_r
+    cmp #0      ; exit
+    beq exit
+    jmp next_instruction
+
+exit:
+    lda #42
+    jsr $ffee
+    rts
+
+lookup_low:
+.byte <[inst_lc - 1]
+.byte <[inst_cpy - 1]
+.byte <[inst_add - 1]
+.byte <[inst_sub - 1]
+.byte <[inst_and - 1]
+.byte <[inst_or - 1]
+.byte <[inst_xor - 1]
+.byte <[inst_ld - 1]
+.byte <[inst_st - 1]
+.byte <[inst_bx - 1]
+.byte <[inst_adc - 1]
+.byte <[inst_sbc - 1]
+.byte <[inst_js - 1]
+.byte <[inst_jss - 1]
+.byte <[inst_ret - 1]
+.byte <[inst_sys - 1]
+
+lookup_high:
+.byte >[inst_lc - 1]
+.byte >[inst_cpy - 1]
+.byte >[inst_add - 1]
+.byte >[inst_sub - 1]
+.byte >[inst_and - 1]
+.byte >[inst_or - 1]
+.byte >[inst_xor - 1]
+.byte >[inst_ld - 1]
+.byte >[inst_st - 1]
+.byte >[inst_bx - 1]
+.byte >[inst_adc - 1]
+.byte >[inst_sbc - 1]
+.byte >[inst_js - 1]
+.byte >[inst_jss - 1]
+.byte >[inst_ret - 1]
+.byte >[inst_sys - 1]
