@@ -101,13 +101,13 @@ Each of the lowest 3 bits are used to indicate that the instruction should be
 executed if the corresponding condition is met. These map easily to processor
 flags.
 
-======  ==============  ===============================
-Bit     Meaning         Equivalent 6502 processor flags
-======  ==============  ===============================
-0       Less than       N
-1       Equals          Z
-2       Greater than    C & !Z
-======  ==============  ===============================
+======  ==============  =====================================
+Bit     Meaning         Equivalent 6502 processor flags state
+======  ==============  =====================================
+0       Less than       C clear and Z clear
+1       Equals          C set and Z set
+2       Greater than    C set and Z clear
+======  ==============  =====================================
 
 So a *cond* value of 1 indicates that an instruction should only be executed
 if the value held by *R(first)* is less than that held by *R(second)*.
@@ -117,6 +117,17 @@ if the value held by *R(first)* is greater than or equal to that held by
 *R(second)*.
 
 Unconditional branches are encoded with a *cond* value of 7.
+
+=========== ======= ====
+Instruction Value   Bits
+=========== ======= ====
+beq         2       010
+bge         6       110
+bgt         4       100
+ble         3       011
+blt         1       001
+bne         5       101
+=========== ======= ====
 
 The ``cpy`` instruction encodes the extent of a right shift operation on the
 value held in the source register. Left shifts are expressed as negative shift
