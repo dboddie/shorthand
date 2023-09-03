@@ -211,7 +211,7 @@ def inst_bx(opcode):
     if cond == 0:
         inst_not()
         return
-    elif cond < 8:
+    elif cond < 7:
         args = data[pc + 2]
         first, second = args & 0x0f, args >> 4
         if offset >= 128: offset -= 256
@@ -220,7 +220,7 @@ def inst_bx(opcode):
         elif v == 0: flags = 2
         elif v > 0: flags = 4
 
-    if flags & cond != 0 or cond >= 7:
+    if flags & cond != 0 or cond == 7:
         pc += offset
     else:
         pc += 3
