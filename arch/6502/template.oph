@@ -1,0 +1,13 @@
+.org $0e02
+
+.alias rstack_ptr $9f
+.alias stack_ptr $0080
+
+main:
+    jmp process
+    
+program_start:
+
+.include "code.oph"
+.include "shorthand.oph"
+
