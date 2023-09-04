@@ -256,13 +256,15 @@ def inst_ret(opcode):
     pc = rstack[rsp]
 
 def inst_sys(opcode):
-    global end
+    global end, pc
     n = opcode >> 4
     if n == 0:
         end = True
+    elif n == 1:
+        print(chr(stack[sp]), end="")
     elif n == 15:
         print(stack[sp:])
-    return 1
+    pc += 1
 
 instructions = [
     inst_lc,        # R(dest)   V(low)      V(high)
