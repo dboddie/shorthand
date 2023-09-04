@@ -1,13 +1,13 @@
 .org $0e02
 
-.alias program_start $1900
-.alias rstack_top $9f
-.alias stack_top $8f
-
 ; Programs including this file must define:
 ; program_start : The start address of the bytecodes in memory.
 ; stack_top     : The address in zero page of the top byte in the parameter stack.
 ; rstack_top    : The address in zero page of the top byte in the return address stack.
+
+;.alias program_start $1900
+;.alias rstack_top $9f
+;.alias stack_top $8f
 
 ; Program counter
 .alias pc $70
@@ -40,7 +40,11 @@ process:
     lda #>program_start
     sta pc_high
 
-    next_instruction:
+    jmp exec_instruction
+
+    next_instruction:       ; Sequential instructions jump here.
+    jsr inc_pc
+    exec_instruction:       ; Branch and return instructions jump here.
     ldy #0
     lda (pc),y
     and #$0f                ; Extract the instruction number.
@@ -75,6 +79,7 @@ next_byte:
     rts
 
 split_args:
+    jsr next_byte
     sta first
     jsr lsr_4
     sta second
@@ -84,6 +89,7 @@ split_args:
     rts
 
 load_first_second:
+    jsr split_args
     ldy second
     lda (sp),y
     sta second
@@ -92,10 +98,18 @@ load_first_second:
     sta first
     rts
 
+cond_set_cb_inv:
+    php
+    pla
+    and #1      ; C is bit 0
+    eor #1
+    sta cb
+    rts
+
 cond_set_cb:
-    ; store C in cb
-    lda #0
-    rol
+    php
+    pla
+    and #1      ; C is bit 0
     sta cb
     rts
 
@@ -111,21 +125,19 @@ inst_lc:    ; A=opcode [dest|opcode value]
     jsr next_byte   ; value
     ldy dest
     sta (sp),y
-    jsr inc_pc
     jmp next_instruction
 
 inst_cpy:   ; A=opcode [dest|opcode shift|src]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr next_byte
     jsr split_args  ; A=first=src, second=shift
     tay             ; Y=first
     lda second      ; shift
     cmp #8
     bcc cpy_shift_lt_8
         clc
-        adc #248    ; 8-15 -> 248-255 (-8 to -1)
+        adc #240    ; 8-15 -> 248-255 (-8 to -1)
         tax         ; X=shift
         lda (sp),y  ; value
         cpy_asl_loop:
@@ -144,36 +156,28 @@ inst_cpy:   ; A=opcode [dest|opcode shift|src]
     clc
     ldy dest
     sta (sp),y
-    jsr inc_pc
     jmp next_instruction
 
 inst_add:   ; A=opcode [dest|opcode second|first]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr next_byte
-    jsr split_args
     jsr load_first_second   ; A=first
     clc
     adc second      ; A = first + second
     jsr cond_set_cb
     jsr store_dest
-    jsr inc_pc
     jmp next_instruction
 
 inst_sub:   ; A=opcode [dest|opcode second|first]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr next_byte
-    jsr split_args
     jsr load_first_second   ; A=first
     sec
-    lda first
     sbc second      ; A = first + second
-    jsr cond_set_cb ; inverted?
+    jsr cond_set_cb_inv
     jsr store_dest
-    jsr inc_pc
     jmp next_instruction
 
 inst_adc:   ; A=opcode [dest|opcode]
@@ -189,7 +193,6 @@ inst_adc:   ; A=opcode [dest|opcode]
         jsr store_dest
 
     inst_adc_ret:
-    jsr inc_pc
     jmp next_instruction
 
 inst_sbc:   ; A=opcode [dest|opcode]
@@ -202,75 +205,58 @@ inst_sbc:   ; A=opcode [dest|opcode]
         lda (sp),y
         sec
         sbc #1
-        jsr cond_set_cb ; inverted?
-        ldy dest
-        sta (sp),y
+        jsr cond_set_cb_inv
+        jsr store_dest
 
     inst_sbc_ret:
-    jsr inc_pc
     jmp next_instruction
 
 inst_and:   ; A=opcode [dest|opcode second|first]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr next_byte
-    jsr split_args
     jsr load_first_second   ; A=first
     and second
     jsr store_dest
-    jsr inc_pc
     jmp next_instruction
 
 inst_or:    ; A=opcode [dest|opcode second|first]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr next_byte
-    jsr split_args
     jsr load_first_second   ; A=first
     ora second
     jsr store_dest
-    jsr inc_pc
     jmp next_instruction
 
 inst_xor:   ; A=opcode [dest|opcode second|first]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr next_byte
-    jsr split_args
     jsr load_first_second   ; A=first
     eor second
     jsr store_dest
-    jsr inc_pc
     jmp next_instruction
 
 inst_ld:    ; A=opcode [dest|opcode high|low]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr next_byte
-    jsr split_args
     jsr load_first_second   ; first=low, second=high
     ldy #0
     lda (first),y   ; load the contents of the address
     jsr store_dest
-    jsr inc_pc
     jmp next_instruction
 
 inst_st:    ; A=opcode [src|opcode high|low]
 
     jsr lsr_4       ; src=dest
     sta dest
-    jsr next_byte
-    jsr split_args
     jsr load_first_second   ; first=low, second=high
     ldy dest
     lda (sp),y
     ldy #0
     sta (first),y
-    jsr inc_pc
     jmp next_instruction
 
 .alias offset dest
@@ -280,7 +266,7 @@ inst_st:    ; A=opcode [src|opcode high|low]
 ; ignoring signed comparisons.
 cond_flags:
 ;     -- -C Z- ZC
-.byte 1, 4, 0, 6
+.byte 1, 4, 0, 2
 ;     lt gt -  eq
 
 ; The inst_bx routine implements conditional branches (beq, bge, bgt, ble,
@@ -292,7 +278,7 @@ inst_bx:    ; A=opcode [cond|opcode offset second|first] (b*)
 
     jsr lsr_4
     cmp #0
-    bne inst_not    ; If cond == 0 this is a not instruction.
+    beq inst_not    ; If cond == 0 this is a not instruction.
     sta cond
 
     ldy #1
@@ -301,11 +287,9 @@ inst_bx:    ; A=opcode [cond|opcode offset second|first] (b*)
 
     lda cond
     cmp #7
-    bcs inst_bx_branch
+    beq inst_bx_branch
 
-    jsr next_byte       ; read pc + 2 (first and second operands)
-    jsr split_args
-    jsr load_first_second
+    jsr load_first_second   ; A=first
     cmp second
     php
     pla                 ; N-----ZC
@@ -317,7 +301,6 @@ inst_bx:    ; A=opcode [cond|opcode offset second|first] (b*)
     bne inst_bx_branch  ; Branch if a match occurred.
 
 inst_bx_cond_fail:
-    jsr inc_pc
     jmp next_instruction
 
 inst_bx_branch:
@@ -329,17 +312,14 @@ inst_bx_branch:
     inc pc_high
 
 inst_bx_ret:
-    jmp next_instruction
+    jmp exec_instruction
 
 inst_not:   ; [src|dest] (not)
-    jsr next_byte
-    jsr split_args
     jsr load_first_second   ; A=dest=first
     tay
     lda second
     eor #255
     sta (sp),y
-    jsr inc_pc
     jmp next_instruction
 
 .alias args dest
@@ -355,23 +335,20 @@ inst_js:    ; A=opcode [args|opcode low high]
     jsr next_byte
     sta high
     jsr inc_pc
-    jsr push_pc
-    jsr push_args
+    jsr push_pc_and_args
     lda low
     sta pc_low
     lda high
     sta pc_high
-    rts
+    jmp exec_instruction
 
-push_pc:
+push_pc_and_args:
     lda pc_high
     sta rsp
     dec rsp
     lda pc_low
+    sta rsp
     dec rsp
-    rts
-
-push_args:
     sec
     lda sp
     sbc args
@@ -386,8 +363,7 @@ inst_jss:   ; A=opcode [args|opcode offset]
     jsr next_byte
     sta offset
     jsr inc_pc
-    jsr push_pc
-    jsr push_args
+    jsr push_pc_and_args
     jmp inst_bx_branch
 
 inst_ret:   ; A=opcode [args|opcode]
@@ -402,14 +378,13 @@ inst_ret:   ; A=opcode [args|opcode]
     inc rsp
     lda rsp
     sta pc_high
-    jmp next_instruction
+    jmp exec_instruction
 
 inst_sys:   ; A=opcode [value|opcode]
 
     jsr lsr_4
     cmp #0      ; exit
     beq exit
-    jsr inc_pc
     jmp next_instruction
 
 exit:
