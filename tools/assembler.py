@@ -214,6 +214,8 @@ def inst_1r(n, fmt, l, name, args, addr, current_label, out_f, verbose):
 def inst_ret(n, fmt, l, name, args, addr, current_label, out_f, verbose):
 
     values = check_args(args, fmt, l)
+    if current_label not in labels:
+        error("not in a subroutine", l)
     target, nparams, absolute = labels[current_label]
 
     out_f.write(struct.pack("<B", n | (nparams << 4)))
