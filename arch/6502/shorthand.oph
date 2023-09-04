@@ -1,6 +1,3 @@
-; Note that the license for this file differs from those of other files in this
-; repository.
-
 ; Copyright (c) 2023, David Boddie
 ;
 ; Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -25,12 +22,12 @@
 
 ; Programs including this file must define:
 ; program_start : The start address of the bytecodes in memory.
-; stack_top     : The address in zero page of the top byte in the parameter stack.
-; rstack_top    : The address in zero page of the top byte in the return address stack.
+; stack_ptr     : The initial address of the top byte in the parameter stack.
+; rstack_ptr    : The initial zero page address of the return address stack.
 
 ;.alias program_start $1900
-;.alias rstack_top $9f
-;.alias stack_top $8f
+;.alias rstack_ptr $9f
+;.alias stack_ptr $0080
 
 ; Program counter
 .alias pc $70
@@ -38,14 +35,15 @@
 .alias pc_high $71
 ; Variable/parameter stack
 .alias sp $72
+.alias sp_high $73
 ; Return address stack
-.alias rsp $73
+.alias rsp $74
 ; Carry/borrow
-.alias cb $74
-.alias dest $75
-.alias first $76
-.alias second $77
-.alias extra $78
+.alias cb $75
+.alias dest $76
+.alias first $77
+.alias second $78
+.alias extra $79
 
 process:
 
@@ -53,10 +51,12 @@ process:
     sta cb
 
     ; Reserve memory for variables and a return address stack.
-    lda #rstack_top
+    lda #rstack_ptr
     sta rsp
-    lda #stack_top
+    lda #<stack_ptr
     sta sp
+    lda #>stack_ptr
+    sta sp_high
 
     lda #<program_start
     sta pc_low
@@ -70,12 +70,15 @@ process:
     exec_instruction:       ; Branch and return instructions jump here.
     ldy #0
     lda (pc),y
+    tay                     ; Save the combined opcode byte.
     and #$0f                ; Extract the instruction number.
     tax
     lda lookup_high,x       ; Load the high byte of the routine address.
     pha                     ; Store the address in a fixed address.
     lda lookup_low,x        ; Load the low byte of the routine address.
     pha                     ; Store the address in a fixed address.
+
+    tya                     ; Restore the combined opcode byte.
 
     ; Jump to the address held by the temporary address. Instructions will
     ; jump back to the next_instruction label to continue execution.
@@ -101,8 +104,9 @@ next_byte:
     lda (pc),y
     rts
 
-split_args:
+split_next:
     jsr next_byte
+split_args:
     sta first
     jsr lsr_4
     sta second
@@ -111,8 +115,9 @@ split_args:
     sta first
     rts
 
+split_first_second:
+    jsr split_next
 load_first_second:
-    jsr split_args
     ldy second
     lda (sp),y
     sta second
@@ -121,17 +126,14 @@ load_first_second:
     sta first
     rts
 
-cond_set_cb_inv:
-    php
+cond_set_cb_inv:    ; A=processor flags
     pla
     and #1      ; C is bit 0
     eor #1
     sta cb
     rts
 
-cond_set_cb:
-    php
-    pla
+cond_set_cb:    ; A=processor flags
     and #1      ; C is bit 0
     sta cb
     rts
@@ -154,7 +156,7 @@ inst_cpy:   ; A=opcode [dest|opcode shift|src]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr split_args  ; A=first=src, second=shift
+    jsr split_next  ; A=first=src, second=shift
     tay             ; Y=first
     lda second      ; shift
     cmp #8
@@ -185,22 +187,26 @@ inst_add:   ; A=opcode [dest|opcode second|first]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr load_first_second   ; A=first
+    jsr split_first_second   ; A=first
     clc
     adc second      ; A = first + second
-    jsr cond_set_cb
+    php
     jsr store_dest
+    pla
+    jsr cond_set_cb
     jmp next_instruction
 
 inst_sub:   ; A=opcode [dest|opcode second|first]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr load_first_second   ; A=first
+    jsr split_first_second   ; A=first
     sec
     sbc second      ; A = first + second
-    jsr cond_set_cb_inv
+    php
     jsr store_dest
+    pla
+    jsr cond_set_cb_inv
     jmp next_instruction
 
 inst_adc:   ; A=opcode [dest|opcode]
@@ -212,8 +218,10 @@ inst_adc:   ; A=opcode [dest|opcode]
         tay
         lda (sp),y
         adc #1
-        jsr cond_set_cb
+        php
         jsr store_dest
+        pla
+        jsr cond_set_cb
 
     inst_adc_ret:
     jmp next_instruction
@@ -228,8 +236,10 @@ inst_sbc:   ; A=opcode [dest|opcode]
         lda (sp),y
         sec
         sbc #1
-        jsr cond_set_cb_inv
+        php
         jsr store_dest
+        pla
+        jsr cond_set_cb_inv
 
     inst_sbc_ret:
     jmp next_instruction
@@ -238,7 +248,7 @@ inst_and:   ; A=opcode [dest|opcode second|first]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr load_first_second   ; A=first
+    jsr split_first_second   ; A=first
     and second
     jsr store_dest
     jmp next_instruction
@@ -247,7 +257,7 @@ inst_or:    ; A=opcode [dest|opcode second|first]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr load_first_second   ; A=first
+    jsr split_first_second   ; A=first
     ora second
     jsr store_dest
     jmp next_instruction
@@ -256,7 +266,7 @@ inst_xor:   ; A=opcode [dest|opcode second|first]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr load_first_second   ; A=first
+    jsr split_first_second   ; A=first
     eor second
     jsr store_dest
     jmp next_instruction
@@ -265,7 +275,7 @@ inst_ld:    ; A=opcode [dest|opcode high|low]
 
     jsr lsr_4       ; dest
     sta dest
-    jsr load_first_second   ; first=low, second=high
+    jsr split_first_second   ; first=low, second=high
     ldy #0
     lda (first),y   ; load the contents of the address
     jsr store_dest
@@ -275,7 +285,7 @@ inst_st:    ; A=opcode [src|opcode high|low]
 
     jsr lsr_4       ; src=dest
     sta dest
-    jsr load_first_second   ; first=low, second=high
+    jsr split_first_second   ; first=low, second=high
     ldy dest
     lda (sp),y
     ldy #0
@@ -312,6 +322,9 @@ inst_bx:    ; A=opcode [cond|opcode offset second|first] (b*)
     cmp #7
     beq inst_bx_branch
 
+    ldy #2
+    lda (pc),y
+    jsr split_args
     jsr load_first_second   ; A=first
     cmp second
     php
@@ -324,6 +337,8 @@ inst_bx:    ; A=opcode [cond|opcode offset second|first] (b*)
     bne inst_bx_branch  ; Branch if a match occurred.
 
 inst_bx_cond_fail:
+    jsr inc_pc
+    jsr inc_pc
     jmp next_instruction
 
 inst_bx_branch:
@@ -332,13 +347,23 @@ inst_bx_branch:
     adc pc_low
     sta pc_low
     bcc inst_bx_ret
-    inc pc_high
 
+    lda offset
+    and #$80            ; Is the branch negative?
+    bne inst_bx_dec
+    lda #0              ; Extend the sign bit (0).
+    beq inst_bx_high
+inst_bx_dec:
+    lda #$ff            ; Extend the sign bit (1).
+inst_bx_high:
+    sec                 ; C was set.
+    adc pc_high
+    sta pc_high
 inst_bx_ret:
     jmp exec_instruction
 
 inst_not:   ; [src|dest] (not)
-    jsr load_first_second   ; A=dest=first
+    jsr split_first_second   ; A=dest=first
     tay
     lda second
     eor #255
@@ -408,11 +433,17 @@ inst_sys:   ; A=opcode [value|opcode]
     jsr lsr_4
     cmp #0      ; exit
     beq exit
+    cmp #1
+    beq vdu
+    jmp next_instruction
+
+vdu:
+    ldy #0
+    lda (sp),y
+    jsr $ffee
     jmp next_instruction
 
 exit:
-    lda #42
-    jsr $ffee
     rts
 
 lookup_low:
