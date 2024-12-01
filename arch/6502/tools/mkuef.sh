@@ -7,7 +7,7 @@ if [[ $# != 2 ]]; then
     exit 1
 fi
 
-echo -n '$.'`basename "$1"`' E02 E05 ' > "$1".inf
+echo -n '$.'`basename "$1"`' E02 E02 ' > "$1".inf
 printf "%x\n" `stat --printf="%s" $1` >> "$1".inf
 
 UEFtrans.py "$2" new Electron 0
