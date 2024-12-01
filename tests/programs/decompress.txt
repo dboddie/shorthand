@@ -24,12 +24,12 @@ src_high=r13
 end=r14
 end_high=r15
 
-lc src 0x00             ; src=4096
-lc src_high 0x10
-lc dest 0x00            ; dest=8192
-lc dest_high 0x20
+lc src 0x00             ; src=8192
+lc src_high 0x20
+lc dest 0x00            ; dest=12288
+lc dest_high 0x30
 lc end 0xa4             ; end = dest + <length of sample.txt>
-lc end_high 0x20
+lc end_high 0x30
 
 ; Constants
 lc zero 0

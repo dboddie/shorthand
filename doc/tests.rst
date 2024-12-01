@@ -38,7 +38,7 @@ the number of bytes to read:
 
 .. code:: bash
 
-    ./tools/simulator.py -d 4096 tests/data/compressed.bin -x 8192 164 /tmp/asm
+    ./tools/simulator.py -d 8192 tests/data/compressed.bin -x 12288 164 /tmp/asm.out
 
 The result is a dump of the memory from the simulator after the program has
 finished running. It should contain a copy of the original uncompressed text
